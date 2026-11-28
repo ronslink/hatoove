@@ -294,6 +294,12 @@ export async function importBundledTelcB2Package(pool) {
   return importPackage(pool,telcB2,{publisher:'bundled-telc-b2-source',activation:'if-missing'});
 }
 
+/** Persistent runtime initialization for the bundled Goethe-Zertifikat B2 complete written package (LV + HV + SA). */
+export async function importBundledGoetheB2Package(pool) {
+  const goetheB2=JSON.parse(await readFile(new URL('../../content/exams/goethe-zertifikat-b2/listening-package.json',import.meta.url),'utf8'));
+  return importPackage(pool,goetheB2,{publisher:'bundled-goethe-b2-source',activation:'if-missing'});
+}
+
 /** Reference-only v5 available release derived from the approved bundled DTZ v4 package. */
 export function buildBundledDtzAvailablePackage(dtz) {
   return {

@@ -17,6 +17,12 @@ export const TELC_B2_KEYS = Object.freeze(['telc_b2_aufgabe','telc_b2_kommunikat
 export const TELC_B2_BANDS = Object.freeze({A:3,B:2,C:1,D:0});
 export const TELC_B2_INSTRUCTIONS = 'Assess each criterion against its own bound telc Deutsch B2 descriptors (A to D). No total score or pass/fail prediction. Text with no meaningful relation to the selected prompt receives D in all four criteria.';
 
+export const GOETHE_B2_POLICY = 'goethe-b2-writing-practice-v1';
+export const GOETHE_B2_KIND = 'goethe-b2-writing-bands';
+export const GOETHE_B2_KEYS = Object.freeze(['goethe_b2_erfuellung','goethe_b2_kohaerenz','goethe_b2_wortschatz','goethe_b2_strukturen']);
+export const GOETHE_B2_BANDS = Object.freeze({A:4,B:3,C:2,D:1,E:0});
+export const GOETHE_B2_INSTRUCTIONS = 'Assess each criterion against its own bound Goethe-Zertifikat B2 descriptors (A to E). No total score or pass/fail prediction. Text with no meaningful relation to the selected prompt receives E in all four criteria.';
+
 export function supportedWritingPolicy(rubric, examId) {
   if (rubric?.policy === DTZ_POLICY && examId === 'dtz-a2-b1' && rubric.feedback_kind === DTZ_KIND) {
     return Array.isArray(rubric.criteria) && rubric.criteria.length === 4
@@ -29,6 +35,10 @@ export function supportedWritingPolicy(rubric, examId) {
   if (rubric?.policy === TELC_B2_POLICY && examId === 'telc-deutsch-b2' && rubric.feedback_kind === TELC_B2_KIND) {
     return Array.isArray(rubric.criteria) && rubric.criteria.length === 4
       && TELC_B2_KEYS.every(key => rubric.criteria.some(c => c.key === key));
+  }
+  if (rubric?.policy === GOETHE_B2_POLICY && examId === 'goethe-zertifikat-b2' && rubric.feedback_kind === GOETHE_B2_KIND) {
+    return Array.isArray(rubric.criteria) && rubric.criteria.length === 4
+      && GOETHE_B2_KEYS.every(key => rubric.criteria.some(c => c.key === key));
   }
   return false;
 }

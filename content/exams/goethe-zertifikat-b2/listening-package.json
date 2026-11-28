@@ -1,0 +1,1528 @@
+{
+  "schemaVersion": 1,
+  "exam": {
+    "id": "goethe-zertifikat-b2",
+    "title": "Goethe-Zertifikat B2",
+    "language": "de",
+    "levelModel": {
+      "type": "cefr-single",
+      "level": "B2"
+    }
+  },
+  "blueprint": {
+    "version": "v2",
+    "timeGroups": [
+      {
+        "id": "goethe-b2-lv-65",
+        "seconds": 3900,
+        "sections": [
+          "LV"
+        ]
+      },
+      {
+        "id": "goethe-b2-hv-40",
+        "seconds": 2400,
+        "sections": [
+          "HV"
+        ]
+      },
+      {
+        "id": "goethe-b2-sa-75",
+        "seconds": 4500,
+        "sections": [
+          "SA"
+        ]
+      }
+    ],
+    "sections": [
+      {
+        "id": "LV",
+        "title": "Lesen",
+        "timeGroup": "goethe-b2-lv-65",
+        "parts": [
+          {
+            "family": "LV1",
+            "itemCount": 9,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV2",
+            "itemCount": 6,
+            "interaction": "gap_bank",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV3",
+            "itemCount": 6,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV4",
+            "itemCount": 6,
+            "interaction": "matching_headlines",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV5",
+            "itemCount": 3,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          }
+        ]
+      },
+      {
+        "id": "HV",
+        "title": "Hören",
+        "timeGroup": "goethe-b2-hv-40",
+        "parts": [
+          {
+            "family": "HV1",
+            "itemCount": 10,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 1
+            }
+          },
+          {
+            "family": "HV2",
+            "itemCount": 6,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 2
+            }
+          },
+          {
+            "family": "HV3",
+            "itemCount": 6,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 1
+            }
+          },
+          {
+            "family": "HV4",
+            "itemCount": 8,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 2
+            }
+          }
+        ]
+      },
+      {
+        "id": "SA",
+        "title": "Schreiben",
+        "timeGroup": "goethe-b2-sa-75",
+        "parts": [
+          {
+            "family": "writing",
+            "itemCount": 1,
+            "interaction": "writing_choice",
+            "mediaRequired": false
+          }
+        ]
+      }
+    ],
+    "assessment": {
+      "policy": "objective-count-v1",
+      "correct": 1,
+      "incorrect": 0
+    },
+    "sources": [
+      {
+        "id": "S1",
+        "kind": "official-exam-specification",
+        "title": "Goethe-Zertifikat B2 — Prüfungsziele, Testbeschreibung (Lesen, Hören, Schreiben)",
+        "url": "https://www.goethe.de/de/spr/prf/gzb2/ueb.html",
+        "retrieved": "2026-11-28",
+        "verification": "Structural format reference only (section durations, part counts, playback policy 1/2/1/2 and four-criterion A-E writing band structure). All passages, items, tasks and explanations are 100% original Hatoove practice material; no official Goethe-Institut text was copied."
+      }
+    ]
+  },
+  "release": {
+    "version": "v2",
+    "state": "internal",
+    "resumeBlockedReleases": []
+  },
+  "forms": [
+    {
+      "id": "goethe-zertifikat-b2.complete.original01",
+      "version": "v1",
+      "title": "Schriftliche Prüfung · Goethe-Zertifikat B2 (Lesen, Hören, Schreiben)",
+      "scope": "complete_supported_written",
+      "sections": [
+        "LV",
+        "HV",
+        "SA"
+      ],
+      "mode": "timed",
+      "timeLimitSeconds": 10800,
+      "attemptMode": "mock",
+      "timingPolicy": "ordered-fixed-v1",
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "goethe-zertifikat-b2.lv1.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 9
+        },
+        {
+          "setId": "goethe-zertifikat-b2.lv2.original01",
+          "version": "v1",
+          "interaction": "gap_bank",
+          "itemCount": 6
+        },
+        {
+          "setId": "goethe-zertifikat-b2.lv3.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 6
+        },
+        {
+          "setId": "goethe-zertifikat-b2.lv4.original01",
+          "version": "v1",
+          "interaction": "matching_headlines",
+          "itemCount": 6
+        },
+        {
+          "setId": "goethe-zertifikat-b2.lv5.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 3
+        },
+        {
+          "setId": "goethe-zertifikat-b2.hv1.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "goethe-zertifikat-b2.hv2.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 6
+        },
+        {
+          "setId": "goethe-zertifikat-b2.hv3.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 6
+        },
+        {
+          "setId": "goethe-zertifikat-b2.hv4.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 8
+        }
+      ],
+      "writingChoices": [
+        {
+          "id": "SA1",
+          "section": "SA",
+          "options": [
+            {
+              "id": "A",
+              "taskId": "goethe-zertifikat-b2.writing.original01.a",
+              "taskVersion": "v1"
+            },
+            {
+              "id": "B",
+              "taskId": "goethe-zertifikat-b2.writing.original01.b",
+              "taskVersion": "v1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "goethe-zertifikat-b2.listening.practice",
+      "version": "v1",
+      "title": "Hören · Übung (Goethe-Zertifikat B2)",
+      "scope": "section",
+      "sections": [
+        "HV"
+      ],
+      "mode": "untimed",
+      "timeLimitSeconds": null,
+      "attemptMode": "practice",
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "goethe-zertifikat-b2.hv1.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "goethe-zertifikat-b2.hv2.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 6
+        },
+        {
+          "setId": "goethe-zertifikat-b2.hv3.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 6
+        },
+        {
+          "setId": "goethe-zertifikat-b2.hv4.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 8
+        }
+      ]
+    },
+    {
+      "id": "goethe-zertifikat-b2.listening.mock",
+      "version": "v1",
+      "title": "Hören · Prüfungsmodus (Goethe-Zertifikat B2)",
+      "scope": "section",
+      "sections": [
+        "HV"
+      ],
+      "mode": "timed",
+      "timeLimitSeconds": 2400,
+      "attemptMode": "mock",
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "goethe-zertifikat-b2.hv1.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "goethe-zertifikat-b2.hv2.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 6
+        },
+        {
+          "setId": "goethe-zertifikat-b2.hv3.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 6
+        },
+        {
+          "setId": "goethe-zertifikat-b2.hv4.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 8
+        }
+      ]
+    }
+  ],
+  "sets": [
+    {
+      "setId": "goethe-zertifikat-b2.lv1.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "family": "LV1",
+      "section": "LV",
+      "part": 1,
+      "title": "Lesen Teil 1: Vier Forumsbeiträge — Lebenslanges Lernen im Beruf",
+      "interaction": "single_choice",
+      "itemCount": 9,
+      "payload": {
+        "text": "Thema im Berufsforum: Wie realistisch ist lebenslanges Lernen neben dem Arbeitsalltag?\n\nA · Miriam (37, Architektin): Nach zehn Jahren im selben Planungsbüro merkte ich, dass mir moderne Software für nachhaltiges Bauen fehlte. Mein Arbeitgeber übernahm zwar die Kursgebühren, aber die eigentliche Hürde war die Zeit: Abends nach neun Stunden Arbeit noch konzentriert zu lernen, hat mich anfangs völlig erschöpft. Erst als ich meine Stelle für ein halbes Jahr auf 80 Prozent reduzierte, machte die Weiterbildung wirklich Freude.\n\nB · Jonas (29, Logistikplaner): Ich halte nicht viel von langen, teuren Zertifikatskursen, die oft schon veraltet sind, wenn man die Prüfung ablegt. In meiner Branche ändern sich digitale Werkzeuge so rasch, dass ich lieber wöchentlich gezielt Fachartikel lese, kurze Online-Tutorials nutze und mich mit Kolleginnen austausche. Entscheidend ist für mich Neugier, nicht ein gerahmtes Diplom.\n\nC · Dr. Birgit Seidel (54, Personalleiterin): In Vorstellungsgesprächen achte ich längst nicht mehr nur auf den ursprünglichen Studienabschluss, sondern darauf, wie Bewerberinnen und Bewerber mit Veränderungen umgehen. Wer eine berufliche Pause oder einen Quereinstieg bewusst für neue Kompetenzen genutzt hat, bringt oft genau die Anpassungsfähigkeit mit, die Unternehmen heute brauchen. Allerdings sollten Firmen dafür feste Lernzeiten im Dienstplan verankern.\n\nD · Kemal (43, Techniker): Vor drei Jahren habe ich eine berufsbegleitende Weiterbildung zum staatlich geprüften Techniker abgeschlossen. Ohne die Unterstützung meiner Familie hätte ich die Wochenendseminare nicht durchgehalten. Finanziell hat sich die Anstrengung aber gelohnt: Ich konnte direkt eine Teamleitung übernehmen und verdiene heute spürbar besser als zuvor.",
+        "questions": [
+          {
+            "n": 1,
+            "question": "Welche Person hat ihre Arbeitszeit vorübergehend verringert, um besser lernen zu können?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          },
+          {
+            "n": 2,
+            "question": "Welche Person bevorzugt kurze, informelle Lernformate gegenüber langen Kursen mit Abschluss?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          },
+          {
+            "n": 3,
+            "question": "Welche Person beurteilt Bewerbungen stark danach, wie flexibel Menschen auf Wandel reagieren?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          },
+          {
+            "n": 4,
+            "question": "Welche Person hebt hervor, dass sich die Weiterbildung in einem höheren Gehalt ausgezahlt hat?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          },
+          {
+            "n": 5,
+            "question": "Welche Person fand es anfangs sehr anstrengend, nach einem langen Arbeitstag abends zu lernen?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          },
+          {
+            "n": 6,
+            "question": "Welche Person fordert, dass Unternehmen feste Lernzeiten während der Arbeitszeit einplanen?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          },
+          {
+            "n": 7,
+            "question": "Welche Person betont die entscheidende Unterstützung durch die eigene Familie?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          },
+          {
+            "n": 8,
+            "question": "Welche Person glaubt, dass manche langen Kurse bereits überholt sind, bevor sie enden?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          },
+          {
+            "n": 9,
+            "question": "Welche Person bekam die Kursgebühren von ihrem Arbeitgeber bezahlt?",
+            "options": {
+              "a": "Miriam (A)",
+              "b": "Jonas (B)",
+              "c": "Dr. Birgit Seidel (C)",
+              "d": "Kemal (D)"
+            }
+          }
+        ]
+      },
+      "answers": {
+        "1": "a",
+        "2": "b",
+        "3": "c",
+        "4": "d",
+        "5": "a",
+        "6": "c",
+        "7": "d",
+        "8": "b",
+        "9": "a"
+      },
+      "explanations": {
+        "1": "a (Miriam): Sie reduzierte ihre Stelle für ein halbes Jahr auf 80 Prozent.",
+        "2": "b (Jonas): Er nutzt lieber Fachartikel, kurze Online-Tutorials und kollegialen Austausch.",
+        "3": "c (Dr. Seidel): Sie achtet darauf, wie Bewerber mit Veränderungen umgehen.",
+        "4": "d (Kemal): Er übernahm eine Teamleitung und verdient heute spürbar besser.",
+        "5": "a (Miriam): Abends nach neun Stunden Arbeit zu lernen, erschöpfte sie anfangs völlig.",
+        "6": "c (Dr. Seidel): Sie fordert feste Lernzeiten im Dienstplan.",
+        "7": "d (Kemal): Ohne die Unterstützung seiner Familie hätte er die Wochenendseminare nicht durchgehalten.",
+        "8": "b (Jonas): Er meint, lange Zertifikatskurse seien oft schon veraltet, wenn man die Prüfung ablegt.",
+        "9": "a (Miriam): Ihr Arbeitgeber übernahm die Kursgebühren."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B2 practice draft (LV1, 2026-11-28)."
+    },
+    {
+      "setId": "goethe-zertifikat-b2.lv2.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "family": "LV2",
+      "section": "LV",
+      "part": 2,
+      "title": "Lesen Teil 2: Textrekonstruktion — Stadtbäume im Klimawandel",
+      "interaction": "gap_bank",
+      "itemCount": 6,
+      "payload": {
+        "letter": "Neue Baumarten für heiße Sommer: Wie Städte ihre Alleen umbauen\n\nJahrhundertelang prägten Linden, Ahorne und Kastanien das Bild mitteleuropäischer Straßen. [1] Anhaltende Trockenperioden, verdichtete Böden und hohe nächtliche Temperaturen setzen vielen heimischen Arten massiv zu.\n\nIn mehreren deutschen Großstädten prüfen Gartenämter deshalb systematisch widerstandsfähigere Alternativen. [2] Dabei geht es keineswegs darum, heimische Bäume pauschal zu verdrängen, sondern die Straßenbepflanzung deutlich vielfältiger zu gestalten.\n\nEin entscheidender Faktor ist der Wurzelraum unter dem Asphalt. [3] Moderne Bauweisen nutzen daher sogenannte Baumrigolen, die Regenwasser gezielt in grobkörnige Bodenschichten leiten und dort wie ein Schwamm speichern.\n\n[4] Wenn etwa im Juli mehrere Wochen lang kein Tropfen Regen fällt, rücken Freiwillige mit Gießkannen oder mobilen Wassertanks aus, um junge Bäume vor dem Austrocknen zu bewahren.\n\nWissenschaftler weisen jedoch darauf hin, dass neue Baumarten auch ökologisch sorgfältig geprüft werden müssen. [5] Nur wenn ein Baum heimischen Insekten und Vögeln ausreichend Nahrung und Nistplätze bietet, erfüllt er seine volle Funktion im städtischen Ökosystem.\n\n[6] Denn ein ausgewachsener Schattenbaum senkt die gefühlte Temperatur an heißen Nachmittagen lokal um mehrere Grad und verbessert die Lebensqualität im gesamten Viertel.",
+        "bank": [
+          {
+            "id": "a",
+            "word": "Doch in den vergangenen zehn Jahren hat sich gezeigt, dass diese Klassiker den veränderten Bedingungen kaum noch gewachsen sind."
+          },
+          {
+            "id": "b",
+            "word": "Dazu zählen unter anderem die Silberlinde, die Hopfenbuche oder bestimmte Eichenarten aus Südosteuropa."
+          },
+          {
+            "id": "c",
+            "word": "Oft steht einem Stadtbaum nur eine winzige Erdgrube zur Verfügung, aus der das Wasser sofort in die Kanalisation abfließt."
+          },
+          {
+            "id": "d",
+            "word": "Neben den städtischen Betrieben engagieren sich vielerorts auch Anwohnerinnen und Anwohner als Baumpaten."
+          },
+          {
+            "id": "e",
+            "word": "Nicht jede hitzeresistente Art aus fernen Regionen fügt sich problemlos in die heimische Tierwelt ein."
+          },
+          {
+            "id": "f",
+            "word": "Trotz der hohen Investitionskosten sind sich Stadtplaner einig, dass sich jeder gepflanzte Baum langfristig auszahlt."
+          },
+          {
+            "id": "g",
+            "word": "Aus diesem Grund wurden in fast allen Innenstädten sämtliche Parkanlagen vollständig geschlossen."
+          },
+          {
+            "id": "h",
+            "word": "Zudem verlangen die meisten Versicherungen neuerdings eine wöchentliche Bodenprobe jedes einzelnen Privatgartens."
+          }
+        ],
+        "gaps": [
+          {
+            "n": 1
+          },
+          {
+            "n": 2
+          },
+          {
+            "n": 3
+          },
+          {
+            "n": 4
+          },
+          {
+            "n": 5
+          },
+          {
+            "n": 6
+          }
+        ]
+      },
+      "answers": {
+        "1": "a",
+        "2": "b",
+        "3": "c",
+        "4": "d",
+        "5": "e",
+        "6": "f"
+      },
+      "explanations": {
+        "1": "a passt: „diese Klassiker“ greift Linden, Ahorne und Kastanien auf und leitet zu den Trockenperioden über.",
+        "2": "b passt: „Dazu zählen“ nennt konkrete Beispiele für die im Vorsatz erwähnten widerstandsfähigeren Alternativen.",
+        "3": "c passt: Erläutert das Problem des kleinen Wurzelraums und begründet die im Folgesatz genannten Baumrigolen.",
+        "4": "d passt: Führt die Baumpaten ein, die im nächsten Satz mit Gießkannen ausrücken.",
+        "5": "e passt: Konkretisiert die ökologische Prüfung im Hinblick auf die heimische Tierwelt.",
+        "6": "f passt: Schließt den Text ab und wird durch „Denn ein ausgewachsener Schattenbaum …“ direkt begründet."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B2 practice draft (LV2, 2026-11-28)."
+    },
+    {
+      "setId": "goethe-zertifikat-b2.lv3.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "family": "LV3",
+      "section": "LV",
+      "part": 3,
+      "title": "Lesen Teil 3: Sachtext Detailverstehen — Akustik in Großraumbüros",
+      "interaction": "single_choice",
+      "itemCount": 6,
+      "payload": {
+        "text": "Wenn Stille zum knappen Gut wird: Was Lärm im Büro wirklich anrichtet\n\nOffene Bürolandschaften sollten einst die Zusammenarbeit fördern, Hierarchien abbauen und teure Quadratmeter sparen. Inzwischen zeigen zahlreiche arbeitsmedizinische Untersuchungen jedoch eine deutliche Schattenseite: Nichts stört Büroangestellte im Alltag so sehr wie unfreiwillig mitgehörte Gespräche der Kolleginnen und Kollegen.\n\nEntgegen einer verbreiteten Annahme ist dabei nicht die absolute Lautstärke entscheidend. Ein gleichmäßiges Hintergrundrauschen – etwa leise Lüftungsgeräusche – blendet das menschliche Gehirn nach wenigen Minuten weitgehend aus. Deutlich belastender ist sogenannte verständliche Hintergrundsprache: Sobald wir halbe Telefongespräche am Nachbartisch verstehen, verarbeitet unser Sprachzentrum diese automatisch mit, selbst wenn wir uns eigentlich auf eine komplexe Tabelle oder einen Bericht konzentrieren wollen.\n\nDie Folgen sind messbar. In Experimenten sank die Fehlerquote bei anspruchsvollen Lese- und Rechenaufgaben deutlich, sobald die Teilnehmenden in akustisch abgeschirmten Räumen arbeiteten. Viele Betroffene greifen im Alltag zwar zu geräuschunterdrückenden Kopfhörern, doch Arbeitspsychologen sehen darin lediglich eine Notlösung: Dauerhaftes Tragen isoliert das Team und ersetzt keine durchdachte Raumplanung.\n\nModerne Bürokonzepte setzen daher zunehmend auf Zonierung statt auf eine einzige große Halle. Telefonboxen für kurze Anrufe, schallschluckende Wandpaneele, Teppichböden und klar gekennzeichnete Ruhezonen, in denen weder telefoniert noch diskutiert wird, reduzieren die kognitive Ermüdung spürbar. Entscheidend ist außerdem eine gemeinsame Teamvereinbarung: Wer weiß, dass spontane Abstimmungen in der Kaffeeküche oder im Besprechungsraum stattfinden, schützt die Konzentration der anderen ganz automatisch.",
+        "questions": [
+          {
+            "n": 1,
+            "question": "Was war ursprünglich ein Ziel offener Bürolandschaften?",
+            "options": {
+              "a": "Die Zusammenarbeit zu erleichtern und Raumkosten zu senken.",
+              "b": "Mitarbeitende vollständig voneinander abzuschirmen.",
+              "c": "Telefonate am Arbeitsplatz komplett zu verbieten."
+            }
+          },
+          {
+            "n": 2,
+            "question": "Warum stören Telefongespräche am Nachbartisch stärker als gleichmäßiges Lüftungsrauschen?",
+            "options": {
+              "a": "Weil sie immer lauter als jede Lüftung sind.",
+              "b": "Weil das Gehirn verständliche Sprache automatisch mitverarbeitet.",
+              "c": "Weil Lüftungsgeräusche nur nachts auftreten."
+            }
+          },
+          {
+            "n": 3,
+            "question": "Was zeigten Experimente zur Arbeitsleistung?",
+            "options": {
+              "a": "In akustisch abgeschirmten Räumen machten Teilnehmende weniger Fehler.",
+              "b": "Lärm hatte keinerlei Einfluss auf Lese- und Rechenaufgaben.",
+              "c": "Offene Hallen führten zu deutlich schnelleren Ergebnissen."
+            }
+          },
+          {
+            "n": 4,
+            "question": "Wie bewerten Arbeitspsychologen geräuschunterdrückende Kopfhörer?",
+            "options": {
+              "a": "Als ideale und vollständig ausreichende Dauerlösung.",
+              "b": "Als Notlösung, die eine gute Raumplanung nicht ersetzt.",
+              "c": "Als gesundheitsschädlich für das Gehör."
+            }
+          },
+          {
+            "n": 5,
+            "question": "Was kennzeichnet das im letzten Absatz beschriebene Zonierungskonzept?",
+            "options": {
+              "a": "Einzelbüros für alle ohne gemeinsame Treffpunkte.",
+              "b": "Getrennte Bereiche wie Telefonboxen und klare Ruhezonen.",
+              "c": "Die Abschaffung aller Besprechungsräume."
+            }
+          },
+          {
+            "n": 6,
+            "question": "Welche Rolle spielen gemeinsame Teamvereinbarungen?",
+            "options": {
+              "a": "Sie regeln, wo spontane Gespräche stattfinden, und schützen so die Konzentration.",
+              "b": "Sie legen die genauen Arbeitszeiten jeder Person fest.",
+              "c": "Sie ersetzen bauliche Maßnahmen wie schallschluckende Paneele vollständig."
+            }
+          }
+        ]
+      },
+      "answers": {
+        "1": "a",
+        "2": "b",
+        "3": "a",
+        "4": "b",
+        "5": "b",
+        "6": "a"
+      },
+      "explanations": {
+        "1": "a ist richtig: Im ersten Satz steht, offene Büros sollten Zusammenarbeit fördern, Hierarchien abbauen und Quadratmeter sparen.",
+        "2": "b ist richtig: Verständliche Hintergrundsprache wird vom Sprachzentrum automatisch mitverarbeitet.",
+        "3": "a ist richtig: In Experimenten sank die Fehlerquote in akustisch abgeschirmten Räumen deutlich.",
+        "4": "b ist richtig: Kopfhörer gelten als bloße Notlösung, die das Team isoliert und Raumplanung nicht ersetzt.",
+        "5": "b ist richtig: Zonierung kombiniert Telefonboxen, schallschluckende Elemente und klar gekennzeichnete Ruhezonen.",
+        "6": "a ist richtig: Wenn spontane Abstimmungen in Kaffeeküche oder Besprechungsraum stattfinden, bleibt die Konzentration im Arbeitsbereich geschützt."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B2 practice draft (LV3, 2026-11-28)."
+    },
+    {
+      "setId": "goethe-zertifikat-b2.lv4.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "family": "LV4",
+      "section": "LV",
+      "part": 4,
+      "title": "Lesen Teil 4: Kurzkommentare zuordnen — Bargeldloses Bezahlen",
+      "interaction": "matching_headlines",
+      "itemCount": 6,
+      "payload": {
+        "headlines": [
+          {
+            "id": "a",
+            "text": "Sorge um den Verlust der eigenen Ausgabenkontrolle bei Kartenzahlung"
+          },
+          {
+            "id": "b",
+            "text": "Zeitersparnis an der Kasse und weniger Aufwand bei der Buchhaltung"
+          },
+          {
+            "id": "c",
+            "text": "Angst vor Störungen bei Strom- oder Internetausfällen"
+          },
+          {
+            "id": "d",
+            "text": "Schutz der Privatsphäre gegenüber Banken und Zahlungsdienstleistern"
+          },
+          {
+            "id": "e",
+            "text": "Vorteile auf Auslandsreisen ohne ständigen Geldwechsel"
+          },
+          {
+            "id": "f",
+            "text": "Forderung nach Wahlfreiheit für ältere Menschen und Kinder"
+          },
+          {
+            "id": "g",
+            "text": "Abschaffung sämtlicher Bankfilialen innerhalb eines Jahres"
+          },
+          {
+            "id": "h",
+            "text": "Kritik an steigenden Zinsen für Immobilienkredite"
+          }
+        ],
+        "texts": [
+          {
+            "id": 1,
+            "text": "Wenn ich alles nur noch mit dem Smartphone bezahle, verliere ich viel schneller den Überblick darüber, wie viel Geld ich in einer Woche tatsächlich ausgegeben habe. Mit Scheinen im Portemonnaie merke ich sofort, wann mein Budget knapper wird."
+          },
+          {
+            "id": 2,
+            "text": "In meiner kleinen Bäckerei spart das kontaktlose Bezahlen morgens enorm viel Zeit. Außerdem muss ich abends kein schweres Münzgeld mehr zählen und zur Bank bringen – die Abrechnung läuft fast von selbst."
+          },
+          {
+            "id": 3,
+            "text": "Letzten Monat fiel im gesamten Stadtteil für drei Stunden das Kassenterminal aus. Wer kein Bargeld dabeihatte, musste seinen Einkaufswagen stehen lassen. Eine funktionierende Gesellschaft braucht ein krisensicheres Zahlungsmittel ohne Strom."
+          },
+          {
+            "id": 4,
+            "text": "Es geht niemanden etwas an, in welcher Apotheke ich einkaufe oder welche Zeitung ich am Kiosk mitnehme. Jede digitale Transaktion hinterlässt Datenspuren, die ausgewertet werden können."
+          },
+          {
+            "id": 5,
+            "text": "Als ich im Sommer durch Dänemark und Schweden gereist bin, war es wunderbar unkompliziert: Selbst ein einzelnes Busticket oder ein Kaffee ließen sich problemlos per Karte zahlen, ohne teure Wechselstuben suchen zu müssen."
+          },
+          {
+            "id": 6,
+            "text": "Natürlich zahle ich im Supermarkt gern mit Karte, aber mein siebenjähriger Sohn lernt den Wert von Geld am besten mit seinem Taschengeld in Münzen, und auch viele Senioren möchten nicht zur App gezwungen werden."
+          }
+        ]
+      },
+      "answers": {
+        "1": "a",
+        "2": "b",
+        "3": "c",
+        "4": "d",
+        "5": "e",
+        "6": "f"
+      },
+      "explanations": {
+        "1": "a passt: Die Person verliert bei digitaler Zahlung schneller den Überblick über ihre Ausgaben.",
+        "2": "b passt: Die Bäckerei spart Zeit an der Kasse und Aufwand bei der abendlichen Abrechnung.",
+        "3": "c passt: Der Kommentar nennt einen Terminalausfall und fordert ein krisensicheres Zahlungsmittel ohne Strom.",
+        "4": "d passt: Im Mittelpunkt steht der Schutz persönlicher Daten vor Auswertung.",
+        "5": "e passt: Beschreibt die unkomplizierte Kartenzahlung auf Auslandsreisen ohne Geldwechsel.",
+        "6": "f passt: Plädiert für Wahlfreiheit mit Blick auf Kinder und Senioren."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B2 practice draft (LV4, 2026-11-28)."
+    },
+    {
+      "setId": "goethe-zertifikat-b2.lv5.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "family": "LV5",
+      "section": "LV",
+      "part": 5,
+      "title": "Lesen Teil 5: Teilnahmebedingungen — Berufsakademie Weiterbildung",
+      "interaction": "single_choice",
+      "itemCount": 3,
+      "payload": {
+        "text": "Teilnahmebedingungen der Berufsakademie Südwest (Auszug)\n\n§ 3 Rücktritt und Stornierung\nEine kostenfreie Abmeldung von einem gebuchten Lehrgang ist bis spätestens 14 Kalendertage vor Kursbeginn in Textform (Brief oder E-Mail) möglich. Bei einem Rücktritt zwischen dem 13. und dem 3. Tag vor Beginn wird eine Bearbeitungspauschale in Höhe von 30 Prozent der Lehrgangsgebühr erhoben. Erfolgt die Abmeldung später oder erscheint die angemeldete Person nicht, ist die volle Gebühr zu entrichten – es sei denn, es wird rechtzeitig eine geeignete Ersatzperson benannt.\n\n§ 5 Teilnahmebescheinigung und Zertifikat\nEine qualifizierte Teilnahmebescheinigung erhalten Personen, die mindestens 80 Prozent der angesetzten Unterrichtseinheiten besucht haben. Bei ärztlich attestierter Krankheit können versäumte Module einmalig kostenfrei im darauffolgenden Halbjahr nachgeholt werden.\n\n§ 6 Urheberrecht an Lehrmaterialien\nSämtliche ausgehändigten Skripte und digitalen Arbeitsunterlagen sind ausschließlich für den persönlichen Gebrauch im Rahmen des Lehrgangs bestimmt. Eine Weitergabe an Dritte oder Veröffentlichung im Internet bedarf der vorherigen schriftlichen Zustimmung der Akademie.",
+        "questions": [
+          {
+            "n": 1,
+            "question": "Wann muss bei einer sehr kurzfristigen Abmeldung (2 Tage vor Beginn) NICHT die volle Gebühr gezahlt werden?",
+            "options": {
+              "a": "Wenn man telefonisch absagt.",
+              "b": "Wenn rechtzeitig eine geeignete Ersatzperson benannt wird.",
+              "c": "Wenn man bereits früher einen Kurs besucht hat."
+            }
+          },
+          {
+            "n": 2,
+            "question": "Was gilt, wenn jemand wegen einer ärztlich bescheinigten Krankheit Unterricht verpasst?",
+            "options": {
+              "a": "Versäumte Module können einmalig kostenfrei im nächsten Halbjahr nachgeholt werden.",
+              "b": "Das Zertifikat wird ohne weitere Bedingungen sofort ausgestellt.",
+              "c": "Die gesamte Kursgebühr muss neu bezahlt werden."
+            }
+          },
+          {
+            "n": 3,
+            "question": "Wie dürfen die digitalen Arbeitsunterlagen verwendet werden?",
+            "options": {
+              "a": "Sie dürfen frei im Firmenintranet veröffentlicht werden.",
+              "b": "Nur für den persönlichen Gebrauch im Rahmen des Lehrgangs.",
+              "c": "Sie müssen am letzten Kurstag vernichtet werden."
+            }
+          }
+        ]
+      },
+      "answers": {
+        "1": "b",
+        "2": "a",
+        "3": "b"
+      },
+      "explanations": {
+        "1": "b ist richtig: Nach § 3 entfällt die volle Gebühr, wenn rechtzeitig eine geeignete Ersatzperson benannt wird.",
+        "2": "a ist richtig: Nach § 5 können versäumte Module bei ärztlichem Attest einmalig kostenfrei im darauffolgenden Halbjahr nachgeholt werden.",
+        "3": "b ist richtig: Nach § 6 sind Skripte und digitale Unterlagen ausschließlich für den persönlichen Gebrauch bestimmt."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B2 practice draft (LV5, 2026-11-28)."
+    },
+    {
+      "setId": "goethe-zertifikat-b2.hv1.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "family": "HV1",
+      "section": "HV",
+      "part": 1,
+      "title": "Hören Teil 1: Fünf kurze Texte aus Alltag & Beruf",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv1-01",
+            "mediaId": "goethe-zertifikat-b2.hv1.01.audio",
+            "mediaVersion": "v1",
+            "label": "Text 1 · Radiobeitrag über Stadtrad-Verleih",
+            "questions": [
+              {
+                "n": 1,
+                "question": "Die Zahl der Fahrten mit dem Leihradsystem ist im letzten Jahr deutlich gesunken.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 2,
+                "question": "Was testen die Verkehrsbetriebe ab Mai?",
+                "options": {
+                  "a": "Kostenlose Jahresabos für alle Bürger.",
+                  "b": "Robustere Elektroräder an zehn Knotenpunkten.",
+                  "c": "Die Abschaffung aller Leihstationen im Zentrum."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv1-02",
+            "mediaId": "goethe-zertifikat-b2.hv1.02.audio",
+            "mediaVersion": "v1",
+            "label": "Text 2 · Voicemail einer Projektpartnerin",
+            "questions": [
+              {
+                "n": 3,
+                "question": "Frau Sommer ist mit den neuen Grafiken grundsätzlich zufrieden.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 4,
+                "question": "Was muss Herr Krause bis morgen früh 9 Uhr noch ändern?",
+                "options": {
+                  "a": "Die Quartalszahlen auf Folie sieben korrigieren.",
+                  "b": "Das gesamte Farbkonzept der Präsentation neu gestalten.",
+                  "c": "Den Kundentermin um eine Woche verschieben."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv1-03",
+            "mediaId": "goethe-zertifikat-b2.hv1.03.audio",
+            "mediaVersion": "v1",
+            "label": "Text 3 · Durchsage auf einer Fachmesse",
+            "questions": [
+              {
+                "n": 5,
+                "question": "Die Podiumsdiskussion fällt wegen technischer Probleme aus.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 6,
+                "question": "Wo können Gäste die Diskussion verfolgen, wenn Halle 4 voll ist?",
+                "options": {
+                  "a": "Nur am nächsten Tag als Aufzeichnung.",
+                  "b": "Auf großen Bildschirmen im Foyer Ost.",
+                  "c": "Im Außenbereich vor dem Haupteingang."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv1-04",
+            "mediaId": "goethe-zertifikat-b2.hv1.04.audio",
+            "mediaVersion": "v1",
+            "label": "Text 4 · Kulturtipp im Radio",
+            "questions": [
+              {
+                "n": 7,
+                "question": "Die Sonderausstellung im Stadtmuseum endet früher als geplant.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 8,
+                "question": "Was gilt für die Themenführungen am Mittwochabend?",
+                "options": {
+                  "a": "Man muss sich mindestens zwei Wochen vorher anmelden.",
+                  "b": "Sie sind im regulären Eintritt enthalten und ohne Voranmeldung zugänglich.",
+                  "c": "Sie richten sich ausschließlich an Studierende."
+                }
+              }
+            ]
+          },
+          {
+            "id": "hv1-05",
+            "mediaId": "goethe-zertifikat-b2.hv1.05.audio",
+            "mediaVersion": "v1",
+            "label": "Text 5 · Gespräch unter Kolleginnen",
+            "questions": [
+              {
+                "n": 9,
+                "question": "Die beiden Kolleginnen lehnen das neue Pfandsystem ab.",
+                "options": {
+                  "R": "Richtig",
+                  "F": "Falsch"
+                }
+              },
+              {
+                "n": 10,
+                "question": "Wie vermeidet man bei Nutzung der App, dass Pfand abgebucht wird?",
+                "options": {
+                  "a": "Indem man die Schale innerhalb von sieben Tagen zurückgibt.",
+                  "b": "Indem man nur noch kalte Getränke bestellt.",
+                  "c": "Indem man eigenes Besteck von zu Hause mitbringt."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 10,
+      "interaction": "fixed_audio",
+      "answers": {
+        "1": "F",
+        "2": "b",
+        "3": "R",
+        "4": "a",
+        "5": "F",
+        "6": "b",
+        "7": "F",
+        "8": "b",
+        "9": "F",
+        "10": "a"
+      },
+      "explanations": {
+        "1": "Falsch: Es wurden rund zwanzig Prozent mehr Fahrten registriert als im Vorjahr.",
+        "2": "b ist richtig: Ab Mai werden robustere Elektroräder mit festen Ladestationen getestet.",
+        "3": "Richtig: Sie sagt, die Grafiken wirkten jetzt deutlich klarer.",
+        "4": "a ist richtig: Die Quartalszahlen auf Folie sieben stimmen noch nicht mit dem Finanzbericht überein.",
+        "5": "Falsch: Sie beginnt in zwanzig Minuten in Halle 4 und wird zusätzlich live ins Foyer Ost übertragen.",
+        "6": "b ist richtig: Die Veranstaltung wird live auf großen Bildschirmen im Foyer Ost übertragen.",
+        "7": "Falsch: Sie wird wegen des Erfolgs um vier Wochen bis Ende November verlängert.",
+        "8": "b ist richtig: Keine Voranmeldung nötig, der reguläre Museumseintritt genügt.",
+        "9": "Falsch: Sprecherin 2 sagt ausdrücklich „finde ich super“, weil weniger Müll entsteht.",
+        "10": "a ist richtig: Mit der App wird kein Geld abgebucht, solange man die Schale binnen sieben Tagen zurückgibt."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B2 listening transcripts and items (HV1-HV4, 30 items, 8 recordings; 2026-11-28). Unreviewed draft awaiting TTS synthesis and human review."
+    },
+    {
+      "setId": "goethe-zertifikat-b2.hv2.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "family": "HV2",
+      "section": "HV",
+      "part": 2,
+      "title": "Hören Teil 2: Radiointerview — Schlaf- und Chronobiologie",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv2-01",
+            "mediaId": "goethe-zertifikat-b2.hv2.01.audio",
+            "mediaVersion": "v1",
+            "label": "Radiointerview · Innere Uhr & Arbeitszeiten",
+            "questions": [
+              {
+                "n": 11,
+                "question": "Wodurch wird die innere biologische Uhr laut Prof. Baumann hauptsächlich bestimmt?",
+                "options": {
+                  "a": "Weitgehend durch genetische Veranlagung.",
+                  "b": "Ausschließlich durch die Ernährung im Kindesalter.",
+                  "c": "Durch den jeweiligen Beruf der Eltern."
+                }
+              },
+              {
+                "n": 12,
+                "question": "Was versteht man laut Interview unter „sozialem Jetlag“?",
+                "options": {
+                  "a": "Müdigkeit nach langen Interkontinentalflügen.",
+                  "b": "Dauerhaftes Leben gegen den eigenen biologischen Rhythmus.",
+                  "c": "Übermäßige Nutzung sozialer Netzwerke vor dem Schlafengehen."
+                }
+              },
+              {
+                "n": 13,
+                "question": "Lässt sich ein ausgeprägter Abendmensch durch Disziplin dauerhaft zum Frühaufsteher machen?",
+                "options": {
+                  "a": "Ja, innerhalb von zwei Wochen problemlos.",
+                  "b": "Nein, nur in sehr engen Grenzen – es ist eine Frage der Biologie.",
+                  "c": "Nur durch vollständigen Verzicht auf Kaffee."
+                }
+              },
+              {
+                "n": 14,
+                "question": "Was ergaben Modellversuche an Schulen?",
+                "options": {
+                  "a": "Ein 30 Minuten späterer Unterrichtsbeginn verbessert die Konzentration messbar.",
+                  "b": "Jugendliche lernen um 7 Uhr morgens am effektivsten.",
+                  "c": "Späterer Unterrichtsbeginn führt zu mehr Fehlzeiten."
+                }
+              },
+              {
+                "n": 15,
+                "question": "Welchen Nutzen haben echte Gleitzeitmodelle in Unternehmen?",
+                "options": {
+                  "a": "Sie senken Krankheitstage und Fehlerquoten.",
+                  "b": "Sie verkürzen die wöchentliche Arbeitszeit automatisch um fünf Stunden.",
+                  "c": "Sie machen sämtliche Teambesprechungen überflüssig."
+                }
+              },
+              {
+                "n": 16,
+                "question": "Wie sollten Schichten laut Prof. Baumann idealerweise rotieren?",
+                "options": {
+                  "a": "Rückwärts von Nacht über spät nach früh.",
+                  "b": "Vorwärts von früh über spät nach Nacht.",
+                  "c": "Jeden Tag zufällig wechselnd."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 6,
+      "interaction": "fixed_audio",
+      "answers": {
+        "11": "a",
+        "12": "b",
+        "13": "b",
+        "14": "a",
+        "15": "a",
+        "16": "b"
+      },
+      "explanations": {
+        "11": "a ist richtig: Er erklärt, unsere innere biologische Uhr sei weitgehend genetisch festgelegt.",
+        "12": "b ist richtig: Wer dauerhaft gegen seinen eigenen Rhythmus lebt, leidet unter sozialem Jetlag.",
+        "13": "b ist richtig: Umstellung gelingt nur in engen Grenzen; es ist Biologie, nicht Faulheit.",
+        "14": "a ist richtig: Schon dreißig Minuten späterer Beginn verbessern die Konzentration Jugendlicher messbar.",
+        "15": "a ist richtig: Wenn Früh- und Spättypen nach ihrem Rhythmus starten, sinken Krankheitstage und Fehlerquoten.",
+        "16": "b ist richtig: Er empfiehlt Vorwärtsrotation von früh über spät nach Nacht."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B2 listening transcripts and items (HV1-HV4, 30 items, 8 recordings; 2026-11-28). Unreviewed draft awaiting TTS synthesis and human review."
+    },
+    {
+      "setId": "goethe-zertifikat-b2.hv3.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "family": "HV3",
+      "section": "HV",
+      "part": 3,
+      "title": "Hören Teil 3: Gespräch — Gemeinsames Wohnprojekt auf dem Land",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv3-01",
+            "mediaId": "goethe-zertifikat-b2.hv3.01.audio",
+            "mediaVersion": "v1",
+            "label": "Gespräch · Erfahrungen mit einem Mehrgenerationenhaus",
+            "questions": [
+              {
+                "n": 17,
+                "question": "Wer nennt die gegenseitige Hilfe bei der Kinderbetreuung als großen Vorteil?",
+                "options": {
+                  "a": "Moderatorin",
+                  "b": "Katja",
+                  "c": "Daniel"
+                }
+              },
+              {
+                "n": 18,
+                "question": "Wer hebt die gemeinsam finanzierte Photovoltaikanlage hervor?",
+                "options": {
+                  "a": "Moderatorin",
+                  "b": "Katja",
+                  "c": "Daniel"
+                }
+              },
+              {
+                "n": 19,
+                "question": "Wer berichtet von langen Diskussionen über Ordnung im Gemeinschaftsraum?",
+                "options": {
+                  "a": "Moderatorin",
+                  "b": "Katja",
+                  "c": "Daniel"
+                }
+              },
+              {
+                "n": 20,
+                "question": "Wer pendelt zweimal pro Woche mit dem Regionalzug nach Berlin?",
+                "options": {
+                  "a": "Moderatorin",
+                  "b": "Katja",
+                  "c": "Daniel"
+                }
+              },
+              {
+                "n": 21,
+                "question": "Wer rät dazu, vor einer Investition ein Jahr lang an Planungstreffen teilzunehmen?",
+                "options": {
+                  "a": "Moderatorin",
+                  "b": "Katja",
+                  "c": "Daniel"
+                }
+              },
+              {
+                "n": 22,
+                "question": "Wer warnt vor unerwarteten Sanierungskosten bei alten Gebäuden?",
+                "options": {
+                  "a": "Moderatorin",
+                  "b": "Katja",
+                  "c": "Daniel"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 6,
+      "interaction": "fixed_audio",
+      "answers": {
+        "17": "b",
+        "18": "c",
+        "19": "b",
+        "20": "c",
+        "21": "b",
+        "22": "c"
+      },
+      "explanations": {
+        "17": "b (Katja): Sie betont die gemeinsame Werkstatt, den Garten und die gegenseitige Kinderbetreuung.",
+        "18": "c (Daniel): Ihm war das energieautarke Leben mit Photovoltaik und Hackschnitzelheizung wichtig.",
+        "19": "b (Katja): Sie erzählt von den stundenlangen Diskussionen im ersten Jahr und der externen Moderatorin.",
+        "20": "c (Daniel): Er nennt den Arbeitsweg mit dem Regionalzug als größte Umstellung.",
+        "21": "b (Katja): Sie empfiehlt, ein Jahr lang mitzuplanen, um die gemeinsamen Werte zu prüfen.",
+        "22": "c (Daniel): Er rät zu einem finanziellen Polster für unerwartete Sanierungskosten."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B2 listening transcripts and items (HV1-HV4, 30 items, 8 recordings; 2026-11-28). Unreviewed draft awaiting TTS synthesis and human review."
+    },
+    {
+      "setId": "goethe-zertifikat-b2.hv4.original01",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "family": "HV4",
+      "section": "HV",
+      "part": 4,
+      "title": "Hören Teil 4: Vortrag — Die Geschichte und Zukunft des Übersetzens",
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv4-01",
+            "mediaId": "goethe-zertifikat-b2.hv4.01.audio",
+            "mediaVersion": "v1",
+            "label": "Vortrag · Maschinelle Übersetzung & menschliche Sprachmittlung",
+            "questions": [
+              {
+                "n": 23,
+                "question": "Warum lieferten frühe Übersetzungsprogramme oft komische Ergebnisse?",
+                "options": {
+                  "a": "Weil sie Wörter weitgehend isoliert übersetzten.",
+                  "b": "Weil sie nur für zwei Sprachen programmiert waren.",
+                  "c": "Weil sie keine Großbuchstaben kannten."
+                }
+              },
+              {
+                "n": 24,
+                "question": "Wofür eignen sich neuronale Übersetzungswerkzeuge laut Vortrag besonders gut?",
+                "options": {
+                  "a": "Für komplexe internationale Gerichtsverträge ohne Prüfung.",
+                  "b": "Für einfache Gebrauchsanweisungen und schnelles Textverständnis.",
+                  "c": "Für ironische Gedichte und Wortspiele."
+                }
+              },
+              {
+                "n": 25,
+                "question": "Welches Risiko nennt die Vortragende bei juristischen Verträgen?",
+                "options": {
+                  "a": "Dass ein einziges ungenaues Verb ernste Haftungsfolgen haben kann.",
+                  "b": "Dass die Dokumente zu lang werden.",
+                  "c": "Dass Maschinen keine Zahlen übersetzen können."
+                }
+              },
+              {
+                "n": 26,
+                "question": "Wo stoßen Maschinen laut Vortrag weiterhin häufig an Grenzen?",
+                "options": {
+                  "a": "Bei einfachen Datumsangaben.",
+                  "b": "Bei Zwischentönen, kulturellen Anspielungen und Ironie.",
+                  "c": "Bei technischen Produktlisten."
+                }
+              },
+              {
+                "n": 27,
+                "question": "Was bedeutet „Post-Editing“ im Berufsalltag von Übersetzern?",
+                "options": {
+                  "a": "Das nachträgliche Drucken von Büchern.",
+                  "b": "Das Prüfen, Korrigieren und Verfeinern maschineller Rohfassungen.",
+                  "c": "Das vollständige Verbot von Software im Büro."
+                }
+              },
+              {
+                "n": 28,
+                "question": "Warum erfordert Post-Editing besonders hohe Konzentration?",
+                "options": {
+                  "a": "Weil flüssig klingende Maschinenfehler schwer zu entdecken sind.",
+                  "b": "Weil man dabei laut vorlesen muss.",
+                  "c": "Weil die Texte immer handschriftlich vorliegen."
+                }
+              },
+              {
+                "n": 29,
+                "question": "Welche Kompetenzen werden in der Hochschulausbildung immer wichtiger?",
+                "options": {
+                  "a": "Handschriftliches Stenografieren.",
+                  "b": "Terminologiemanagement, interkulturelle Beratung und Qualitätsprüfung.",
+                  "c": "Ausschließlich das Auswendiglernen von Wörterbüchern."
+                }
+              },
+              {
+                "n": 30,
+                "question": "Wie lautet das zentrale Fazit des Vortrags?",
+                "options": {
+                  "a": "Maschinen werden bald alle Sprachberufe vollständig ersetzen.",
+                  "b": "Technik übernimmt Routine, aber Verantwortung für Bedeutung und Tonfall bleibt menschlich.",
+                  "c": "Maschinelle Übersetzung sollte im Berufsleben verboten werden."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "itemCount": 8,
+      "interaction": "fixed_audio",
+      "answers": {
+        "23": "a",
+        "24": "b",
+        "25": "a",
+        "26": "b",
+        "27": "b",
+        "28": "a",
+        "29": "b",
+        "30": "b"
+      },
+      "explanations": {
+        "23": "a ist richtig: Vor zwanzig Jahren übertrugen Programme Wörter nahezu isoliert.",
+        "24": "b ist richtig: Sie sind eine Erleichterung für Gebrauchsanweisungen, schnelle E-Mails und grobes Verstehen.",
+        "25": "a ist richtig: Ein einziges ungenau gewähltes Verb kann schwerwiegende Haftungsfolgen auslösen.",
+        "26": "b ist richtig: Literatur, Marketing und Diplomatie erfordern Gespür für Zwischentöne, Anspielungen und Ironie.",
+        "27": "b ist richtig: Fachübersetzerinnen prüfen und verfeinern maschinelle Rohfassungen.",
+        "28": "a ist richtig: Flüssig klingende Fehler fallen viel weniger auf als offensichtlich holprige Sätze.",
+        "29": "b ist richtig: Genau diese drei Bereiche nennt die Vortragende ausdrücklich.",
+        "30": "b ist richtig: Im Schlusssatz betont sie, die Verantwortung für Bedeutung, Tonfall und Verlässlichkeit bleibe menschlich."
+      },
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B2 listening transcripts and items (HV1-HV4, 30 items, 8 recordings; 2026-11-28). Unreviewed draft awaiting TTS synthesis and human review."
+    }
+  ],
+  "media": [
+    {
+      "mediaId": "goethe-zertifikat-b2.hv1.01.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "path": "content/exams/goethe-zertifikat-b2/audio/hv1.01-v1.wav",
+      "sha256": "3e8198c5d4fcfe1496c2e442c94a4fcc9fbe5dca466af6f68fa9fd2dbf26950b",
+      "byteLength": 1167304,
+      "durationMs": 24318,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b2/listening-source.json#hv1-01"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b2.hv1.02.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "path": "content/exams/goethe-zertifikat-b2/audio/hv1.02-v1.wav",
+      "sha256": "8d432e2aa6da2c40dd60c4fe7de35feb95cd1d2f7d31a6f1c33fc6eed83d4c01",
+      "byteLength": 1175594,
+      "durationMs": 24491,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b2/listening-source.json#hv1-02"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b2.hv1.03.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "path": "content/exams/goethe-zertifikat-b2/audio/hv1.03-v1.wav",
+      "sha256": "611057b607d3220657a0f90080383e7f52778a8f9481f437e28223bf2fd052e0",
+      "byteLength": 1121852,
+      "durationMs": 23371,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b2/listening-source.json#hv1-03"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b2.hv1.04.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "path": "content/exams/goethe-zertifikat-b2/audio/hv1.04-v1.wav",
+      "sha256": "17e294174a84b0dfe8fc93734cec688f36ade8ad1684915c78ef5c8a834680e6",
+      "byteLength": 962274,
+      "durationMs": 20046,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b2/listening-source.json#hv1-04"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b2.hv1.05.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "path": "content/exams/goethe-zertifikat-b2/audio/hv1.05-v1.wav",
+      "sha256": "6fdd5d52ceee1ba1cf90caae0f4aaaf737c96c6d48241397a8db6d77a3ff8667",
+      "byteLength": 1290914,
+      "durationMs": 26893,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b2/listening-source.json#hv1-05"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b2.hv2.01.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "path": "content/exams/goethe-zertifikat-b2/audio/hv2.01-v1.wav",
+      "sha256": "2bd38dd77d87ac3319be19cd114095d5cbde8ca30fcd9d9aef67eb81c8e6ca2a",
+      "byteLength": 5261400,
+      "durationMs": 109612,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b2/listening-source.json#hv2-01"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b2.hv3.01.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "path": "content/exams/goethe-zertifikat-b2/audio/hv3.01-v1.wav",
+      "sha256": "be526b805fb7f938a795f4814451b9ecc16c17d58b5d529cadca7028f73c8496",
+      "byteLength": 5111296,
+      "durationMs": 106484,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b2/listening-source.json#hv3-01"
+    },
+    {
+      "mediaId": "goethe-zertifikat-b2.hv4.01.audio",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "path": "content/exams/goethe-zertifikat-b2/audio/hv4.01-v1.wav",
+      "sha256": "1240b5d1a2c0d7ea0c1e54f8439c868dacdc12322a6d1decf6d7c1216eaf4c56",
+      "byteLength": 5769642,
+      "durationMs": 120200,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, de-DE-Standard-G/H (machine speech); script authored in content/exams/goethe-zertifikat-b2/listening-source.json#hv4-01"
+    }
+  ],
+  "writingTasks": [
+    {
+      "taskId": "goethe-zertifikat-b2.writing.original01.a",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "family": "writing",
+      "section": "SA",
+      "register": "Sie",
+      "topic": "Forumsbeitrag: Künstliche Intelligenz im Unterricht und Studium",
+      "situation": "Schreiben Sie einen Forumsbeitrag (ca. 150–180 Wörter) zum Thema „Sollen KI-Werkzeuge in Schule und Universität gezielt in den Unterricht integriert werden?“ für ein deutschsprachiges Bildungsportal und gehen Sie auf alle vier Punkte ein.",
+      "adressat": "Leserinnen und Leser eines deutschsprachigen Bildungsportals",
+      "leitpunkte": [
+        "Äußern Sie Ihre persönliche Meinung zum Einsatz von KI-Werkzeugen im Unterricht.",
+        "Nennen Sie konkrete Gründe, warum KI das Lernen unterstützen kann.",
+        "Nennen Sie mögliche Risiken oder Grenzen dieser Technologie im Bildungsbereich.",
+        "Machen Sie einen praktikablen Vorschlag, welche Regeln für den verantwortungsvollen Umgang gelten sollten."
+      ],
+      "rubricId": "writing.goethe-b2",
+      "rubricVersion": "v1",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B2 writing task A draft (Forumsbeitrag, 2026-11-28)."
+    },
+    {
+      "taskId": "goethe-zertifikat-b2.writing.original01.b",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "family": "writing",
+      "section": "SA",
+      "register": "Sie",
+      "topic": "Formelle Nachricht: Vorschlag für flexiblere Arbeitszeiten im Betrieb",
+      "situation": "In Ihrem Unternehmen gelten bisher starre Kernarbeitszeiten, die für viele Mitarbeitende mit Pendelwegen oder familiären Pflichten schwer vereinbar sind. Schreiben Sie eine höfliche, sachliche Nachricht an Ihre Abteilungsleitung (Frau Dr. Brandt, ca. 120–150 Wörter) und gehen Sie auf alle vier Punkte ein.",
+      "adressat": "Frau Dr. Brandt (Abteilungsleitung)",
+      "leitpunkte": [
+        "Schildern Sie höflich das Problem mit den aktuellen Arbeitszeiten aus Ihrer Sicht.",
+        "Begründen Sie, warum flexiblere Modelle auch dem Unternehmen nützen könnten.",
+        "Schlagen Sie eine konkrete Lösung oder einen zeitlich begrenzten Probelauf vor.",
+        "Bitten Sie um ein persönliches Gespräch zur weiteren Abstimmung."
+      ],
+      "rubricId": "writing.goethe-b2",
+      "rubricVersion": "v1",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B2 writing task B draft (Formelle Nachricht, 2026-11-28)."
+    }
+  ],
+  "rubrics": [
+    {
+      "rubricId": "writing.goethe-b2",
+      "version": "v1",
+      "examId": "goethe-zertifikat-b2",
+      "family": "writing",
+      "policy": "goethe-b2-writing-practice-v1",
+      "feedbackKind": "goethe-b2-writing-bands",
+      "criteria": [
+        {
+          "key": "goethe_b2_erfuellung",
+          "label": "Erfüllung der Aufgabenstellung",
+          "bands": {
+            "A": 4,
+            "B": 3,
+            "C": 2,
+            "D": 1,
+            "E": 0
+          },
+          "bandLabels": {
+            "A": "A · Vollständig & differenziert",
+            "B": "B · Überwiegend erfüllt",
+            "C": "C · Teilweise erfüllt",
+            "D": "D · Kaum erfüllt",
+            "E": "E · Nicht erfüllt"
+          },
+          "descriptors": {
+            "A": "Alle vier Leitpunkte sind ausführlich, überzeugend und mit B2-Argumentationstiefe bearbeitet; Textsorte und Register passen durchgängig.",
+            "B": "Alle oder fast alle Leitpunkte sind verständlich und treffend behandelt; Textsorte und Register sind weitgehend angemessen.",
+            "C": "Einzelne Leitpunkte fehlen oder bleiben oberflächlich; Register oder Adressatenbezug schwanken.",
+            "D": "Nur wenige Aspekte der Aufgabenstellung sind erkennbar.",
+            "E": "Die Aufgabe ist nicht bearbeitet oder der Text verfehlt das Thema vollständig."
+          }
+        },
+        {
+          "key": "goethe_b2_kohaerenz",
+          "label": "Kohärenz (Textaufbau & Verknüpfung)",
+          "bands": {
+            "A": 4,
+            "B": 3,
+            "C": 2,
+            "D": 1,
+            "E": 0
+          },
+          "bandLabels": {
+            "A": "A · Flüssig & logisch strukturiert",
+            "B": "B · Überwiegend schlüssig",
+            "C": "C · Stellenweise sprunghaft",
+            "D": "D · Kaum zusammenhängend",
+            "E": "E · Kein Zusammenhang"
+          },
+          "descriptors": {
+            "A": "Klar gegliederter Text mit wirkungsvoller Einleitung, logischen Absätzen und vielfältigen Konnektoren auf B2-Niveau.",
+            "B": "Nachvollziehbarer Aufbau mit überwiegend stimmigen Übergängen zwischen den Gedanken.",
+            "C": "Gedankengänge wirken stellenweise unverbunden oder repetitiv.",
+            "D": "Mangelnde Gliederung erschwert das Verständnis deutlich.",
+            "E": "Keine zusammenhängende Textstruktur erkennbar."
+          }
+        },
+        {
+          "key": "goethe_b2_wortschatz",
+          "label": "Wortschatz",
+          "bands": {
+            "A": 4,
+            "B": 3,
+            "C": 2,
+            "D": 1,
+            "E": 0
+          },
+          "bandLabels": {
+            "A": "A · Breites & präzises B2-Spektrum",
+            "B": "B · Solider B2-Wortschatz",
+            "C": "C · Begrenztes Spektrum",
+            "D": "D · Stark eingeschränkt",
+            "E": "E · Unzureichend"
+          },
+          "descriptors": {
+            "A": "Differenzierter, idiomatischer und sachlich treffender B2-Wortschatz mit hoher Ausdruckssicherheit.",
+            "B": "Angemessener Wortschatz für komplexe Themen; vereinzelte Ungenauigkeiten stören das Verständnis nicht.",
+            "C": "Eher einfacher, sich wiederholender Wortschatz; manche Fehlgriffe erfordern Mitdenken.",
+            "D": "Wortschatz reicht kaum aus, um Argumente differenziert darzustellen.",
+            "E": "Wortschatz ermöglicht keine verständliche Aussage."
+          }
+        },
+        {
+          "key": "goethe_b2_strukturen",
+          "label": "Strukturen (Grammatik & Rechtschreibung)",
+          "bands": {
+            "A": 4,
+            "B": 3,
+            "C": 2,
+            "D": 1,
+            "E": 0
+          },
+          "bandLabels": {
+            "A": "A · Komplexe Strukturen sicher",
+            "B": "B · Überwiegend korrekt",
+            "C": "C · Mehrere Fehler, verständlich",
+            "D": "D · Häufige Fehler, schwer verständlich",
+            "E": "E · Kaum verständlich"
+          },
+          "descriptors": {
+            "A": "Komplexe B2-Satzgefüge (Nebensätze, Passiv, Konjunktiv II, Nominalisierungen) werden sicher und fast fehlerfrei verwendet.",
+            "B": "Überwiegend sichere Beherrschung der Grammatik und Rechtschreibung; kleinere Fehler beeinträchtigen das Verständnis nicht.",
+            "C": "Wiederkehrende Fehler bei Verbstellung, Kasus, Rektion oder Orthografie.",
+            "D": "Zahlreiche grammatische Fehler erschweren das Verständnis erheblich.",
+            "E": "Durchgängige Fehler verhindern das Verständnis des Textes."
+          }
+        }
+      ],
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove Goethe-Zertifikat B2 four-criterion A-E practice rubric draft (2026-11-28)."
+    }
+  ]
+}

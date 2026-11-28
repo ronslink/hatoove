@@ -1,5 +1,5 @@
 /** Declarative package validation with explicit supported-format policy. No SQL or provider calls. */
-import { DTZ_KEYS, DTZ_BANDS, DTZ_POLICY, DTZ_KIND, GOETHE_B1_KEYS, GOETHE_B1_BANDS, GOETHE_B1_POLICY, GOETHE_B1_KIND, TELC_B2_KEYS, TELC_B2_BANDS, TELC_B2_POLICY, TELC_B2_KIND } from './writing-policy.mjs';
+import { DTZ_KEYS, DTZ_BANDS, DTZ_POLICY, DTZ_KIND, GOETHE_B1_KEYS, GOETHE_B1_BANDS, GOETHE_B1_POLICY, GOETHE_B1_KIND, TELC_B2_KEYS, TELC_B2_BANDS, TELC_B2_POLICY, TELC_B2_KIND, GOETHE_B2_KEYS, GOETHE_B2_BANDS, GOETHE_B2_POLICY, GOETHE_B2_KIND } from './writing-policy.mjs';
 import { createHash } from 'node:crypto';
 import { validateMediaDescriptor } from './media-contract.mjs';
 
@@ -207,6 +207,8 @@ export function validatePackage(input) {
       ? {keys:GOETHE_B1_KEYS,bands:GOETHE_B1_BANDS,bandCount:5,label:'Goethe B1'}
       : r.examId==='telc-deutsch-b2'&&r.policy===TELC_B2_POLICY&&r.feedbackKind===TELC_B2_KIND
       ? {keys:TELC_B2_KEYS,bands:TELC_B2_BANDS,bandCount:4,label:'telc B2'}
+      : r.examId==='goethe-zertifikat-b2'&&r.policy===GOETHE_B2_POLICY&&r.feedbackKind===GOETHE_B2_KIND
+      ? {keys:GOETHE_B2_KEYS,bands:GOETHE_B2_BANDS,bandCount:5,label:'Goethe B2'}
       : null;
     demand(rubricSpec!==null,'unsupported writing policy');
     demand(Array.isArray(r.criteria)&&r.criteria.length===4&&unique(r.criteria.map(c=>c.key))&&rubricSpec.keys.every(k=>r.criteria.some(c=>c.key===k)),`invalid ${rubricSpec.label} criteria`);
@@ -278,6 +280,10 @@ const COMPLETE_TARGETS={
   'telc-deutsch-b2':{
     sections:['LV','SB','HV','SA'],groups:[[['LV','SB'],5400],[['HV'],1200],[['SA'],1800]],
     parts:[['LV','LV1',5,'matching_headlines'],['LV','LV2',5,'single_choice'],['LV','LV3',10,'matching_ads'],['SB','SB1',10,'gap_choice'],['SB','SB2',10,'gap_bank'],['HV','HV1',5,'fixed_audio'],['HV','HV2',10,'fixed_audio'],['HV','HV3',5,'fixed_audio'],['SA','writing',1,'writing_choice']]
+  },
+  'goethe-zertifikat-b2':{
+    sections:['LV','HV','SA'],groups:[[['LV'],3900],[['HV'],2400],[['SA'],4500]],
+    parts:[['LV','LV1',9,'single_choice'],['LV','LV2',6,'gap_bank'],['LV','LV3',6,'single_choice'],['LV','LV4',6,'matching_headlines'],['LV','LV5',3,'single_choice'],['HV','HV1',10,'fixed_audio'],['HV','HV2',6,'fixed_audio'],['HV','HV3',6,'fixed_audio'],['HV','HV4',8,'fixed_audio'],['SA','writing',1,'writing_choice']]
   }
 };
 
@@ -334,18 +340,24 @@ const GOETHE_B1_PLAYBACK = Object.freeze({
   HV3: Object.freeze({ practice: 1, mock: 1 }),
   HV4: Object.freeze({ practice: 1, mock: 2 }),
 });
+const GOETHE_B2_PLAYBACK = Object.freeze({
+  HV1: Object.freeze({ practice: 1, mock: 1 }),
+  HV2: Object.freeze({ practice: 1, mock: 2 }),
+  HV3: Object.freeze({ practice: 1, mock: 1 }),
+  HV4: Object.freeze({ practice: 1, mock: 2 }),
+});
 /** Dormant historical blueprints keep their hashes; actual listening needs the exact policy. */
 export function validatePlayback(part,examId) {
   demand(part.mediaRequired===true&&part.interaction==='fixed_audio','playback requires fixed audio');
   keys(part.playback,['practice','mock'],'playback');
   demand(['practice','mock'].every(mode=>Number.isSafeInteger(part.playback[mode])&&part.playback[mode]>0&&part.playback[mode]<=10),'invalid playback allowance');
-  const expected=(examId==='dtz-a2-b1'||examId==='telc-deutsch-b2')?{practice:1,mock:1}:examId==='telc-deutsch-b1'?TELC_PLAYBACK[part.family]:examId==='goethe-zertifikat-b1'?GOETHE_B1_PLAYBACK[part.family]:null;
+  const expected=(examId==='dtz-a2-b1'||examId==='telc-deutsch-b2')?{practice:1,mock:1}:examId==='telc-deutsch-b1'?TELC_PLAYBACK[part.family]:examId==='goethe-zertifikat-b1'?GOETHE_B1_PLAYBACK[part.family]:examId==='goethe-zertifikat-b2'?GOETHE_B2_PLAYBACK[part.family]:null;
   if(expected!==null) demand(expected!==undefined&&part.playback.practice===expected.practice&&part.playback.mock===expected.mock,'incorrect target playback policy');
   return part.playback;
 }
 
 function validateListeningBlueprint(p) {
-  const counts=p.exam.id==='dtz-a2-b1'?[4,5,8,3]:(p.exam.id==='telc-deutsch-b1'||p.exam.id==='telc-deutsch-b2')?[5,10,5]:p.exam.id==='goethe-zertifikat-b1'?[10,5,7,8]:null;
+  const counts=p.exam.id==='dtz-a2-b1'?[4,5,8,3]:(p.exam.id==='telc-deutsch-b1'||p.exam.id==='telc-deutsch-b2')?[5,10,5]:p.exam.id==='goethe-zertifikat-b1'?[10,5,7,8]:p.exam.id==='goethe-zertifikat-b2'?[10,6,6,8]:null;
   if(!counts) return;
   const section=p.blueprint.sections.find(s=>s.id==='HV');
   demand(section?.parts.length===counts.length&&section.parts.every((part,i)=>part.family==='HV'+(i+1)&&part.itemCount===counts[i]&&part.mediaRequired&&part.interaction==='fixed_audio'),'incorrect target listening format');

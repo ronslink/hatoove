@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "examId": "goethe-zertifikat-b2",
+  "version": "v1",
+  "language": "de",
+  "source": "Original Hatoove Goethe-Zertifikat B2 listening transcripts and items (HV1-HV4, 30 items, 8 recordings; 2026-11-28). Unreviewed draft awaiting TTS synthesis and human review.",
+  "parts": [
+    {
+      "family": "HV1",
+      "part": 1,
+      "title": "Hören Teil 1: Fünf kurze Texte aus Alltag & Beruf",
+      "playback": { "practice": 1, "mock": 1 },
+      "recordings": [
+        {
+          "id": "hv1-01",
+          "mediaId": "goethe-zertifikat-b2.hv1.01.audio",
+          "mediaVersion": "v1",
+          "label": "Text 1 · Radiobeitrag über Stadtrad-Verleih",
+          "transcript": "[Moderatorin]: Das städtische Leihradsystem feiert heute sein fünfjähriges Bestehen. Zwar wurden im vergangenen Jahr rund zwanzig Prozent mehr Fahrten registriert als noch im Vorjahr, doch die Verkehrsbetriebe klagen über hohe Reparaturkosten durch unsachgemäße Nutzung. Ab Mai werden daher an zehn großen Knotenpunkten neue, robustere Elektroräder mit fest installierten Ladestationen getestet.",
+          "questions": [
+            { "n": 1, "question": "Die Zahl der Fahrten mit dem Leihradsystem ist im letzten Jahr deutlich gesunken.", "options": { "R": "Richtig", "F": "Falsch" }, "answer": "F", "explanation": "Falsch: Es wurden rund zwanzig Prozent mehr Fahrten registriert als im Vorjahr." },
+            { "n": 2, "question": "Was testen die Verkehrsbetriebe ab Mai?", "options": { "a": "Kostenlose Jahresabos für alle Bürger.", "b": "Robustere Elektroräder an zehn Knotenpunkten.", "c": "Die Abschaffung aller Leihstationen im Zentrum." }, "answer": "b", "explanation": "b ist richtig: Ab Mai werden robustere Elektroräder mit festen Ladestationen getestet." }
+          ]
+        },
+        {
+          "id": "hv1-02",
+          "mediaId": "goethe-zertifikat-b2.hv1.02.audio",
+          "mediaVersion": "v1",
+          "label": "Text 2 · Voicemail einer Projektpartnerin",
+          "transcript": "[Anrufbeantworter]: Hallo Herr Krause, hier ist Claudia Sommer von der Agentur Nordlicht. Ich habe mir gerade die aktualisierten Entwürfe für unsere Kundenpräsentation angesehen. Die Grafiken wirken jetzt deutlich klarer, aber auf Folie sieben stimmen die Quartalszahlen noch nicht mit dem Finanzbericht überein. Könnten Sie das bitte bis morgen früh 9 Uhr korrigieren und mir die Datei noch vor dem Kundentermin schicken?",
+          "questions": [
+            { "n": 3, "question": "Frau Sommer ist mit den neuen Grafiken grundsätzlich zufrieden.", "options": { "R": "Richtig", "F": "Falsch" }, "answer": "R", "explanation": "Richtig: Sie sagt, die Grafiken wirkten jetzt deutlich klarer." },
+            { "n": 4, "question": "Was muss Herr Krause bis morgen früh 9 Uhr noch ändern?", "options": { "a": "Die Quartalszahlen auf Folie sieben korrigieren.", "b": "Das gesamte Farbkonzept der Präsentation neu gestalten.", "c": "Den Kundentermin um eine Woche verschieben." }, "answer": "a", "explanation": "a ist richtig: Die Quartalszahlen auf Folie sieben stimmen noch nicht mit dem Finanzbericht überein." }
+          ]
+        },
+        {
+          "id": "hv1-03",
+          "mediaId": "goethe-zertifikat-b2.hv1.03.audio",
+          "mediaVersion": "v1",
+          "label": "Text 3 · Durchsage auf einer Fachmesse",
+          "transcript": "[Durchsage]: Verehrte Messebesucherinnen und Messebesucher, in zwanzig Minuten beginnt in Halle 4 die Podiumsdiskussion zum Thema „Kreislaufwirtschaft in der Verpackungsindustrie“. Da die Sitzplätze im Forum begrenzt sind, übertragen wir die Veranstaltung zusätzlich live auf den großen Bildschirmen im Foyer Ost. Im Anschluss an die Diskussion besteht dort die Möglichkeit, direkt mit den Referenten ins Gespräch zu kommen.",
+          "questions": [
+            { "n": 5, "question": "Die Podiumsdiskussion fällt wegen technischer Probleme aus.", "options": { "R": "Richtig", "F": "Falsch" }, "answer": "F", "explanation": "Falsch: Sie beginnt in zwanzig Minuten in Halle 4 und wird zusätzlich live ins Foyer Ost übertragen." },
+            { "n": 6, "question": "Wo können Gäste die Diskussion verfolgen, wenn Halle 4 voll ist?", "options": { "a": "Nur am nächsten Tag als Aufzeichnung.", "b": "Auf großen Bildschirmen im Foyer Ost.", "c": "Im Außenbereich vor dem Haupteingang." }, "answer": "b", "explanation": "b ist richtig: Die Veranstaltung wird live auf großen Bildschirmen im Foyer Ost übertragen." }
+          ]
+        },
+        {
+          "id": "hv1-04",
+          "mediaId": "goethe-zertifikat-b2.hv1.04.audio",
+          "mediaVersion": "v1",
+          "label": "Text 4 · Kulturtipp im Radio",
+          "transcript": "[Moderator]: Noch ein Hinweis für Architekturinteressierte: Das Stadtmuseum verlängert seine erfolgreiche Sonderausstellung über nachhaltiges Bauen aus Holz um weitere vier Wochen bis Ende November. Jeden Mittwochabend um 18:30 Uhr bieten junge Architektinnen kurze Themenführungen an, für die keine Voranmeldung nötig ist – der reguläre Museumseintritt genügt.",
+          "questions": [
+            { "n": 7, "question": "Die Sonderausstellung im Stadtmuseum endet früher als geplant.", "options": { "R": "Richtig", "F": "Falsch" }, "answer": "F", "explanation": "Falsch: Sie wird wegen des Erfolgs um vier Wochen bis Ende November verlängert." },
+            { "n": 8, "question": "Was gilt für die Themenführungen am Mittwochabend?", "options": { "a": "Man muss sich mindestens zwei Wochen vorher anmelden.", "b": "Sie sind im regulären Eintritt enthalten und ohne Voranmeldung zugänglich.", "c": "Sie richten sich ausschließlich an Studierende." }, "answer": "b", "explanation": "b ist richtig: Keine Voranmeldung nötig, der reguläre Museumseintritt genügt." }
+          ]
+        },
+        {
+          "id": "hv1-05",
+          "mediaId": "goethe-zertifikat-b2.hv1.05.audio",
+          "mediaVersion": "v1",
+          "label": "Text 5 · Gespräch unter Kolleginnen",
+          "transcript": "[Sprecherin 1]: Sag mal, hast du schon die E-Mail zur neuen Kantine gelesen? Ab nächsten Monat gibt es ein Pfandsystem für die Mitnahmebecher und Salatschalen.\n[Sprecherin 2]: Ja, finde ich super! Endlich landen nicht mehr hunderte Einwegverpackungen im Müll. Man zahlt beim ersten Mal nur fünf Euro Pfand oder nutzt einfach die kostenlose App der Kantine, dann wird gar kein Geld abgebucht, solange man die Schale binnen sieben Tagen zurückgibt.",
+          "questions": [
+            { "n": 9, "question": "Die beiden Kolleginnen lehnen das neue Pfandsystem ab.", "options": { "R": "Richtig", "F": "Falsch" }, "answer": "F", "explanation": "Falsch: Sprecherin 2 sagt ausdrücklich „finde ich super“, weil weniger Müll entsteht." },
+            { "n": 10, "question": "Wie vermeidet man bei Nutzung der App, dass Pfand abgebucht wird?", "options": { "a": "Indem man die Schale innerhalb von sieben Tagen zurückgibt.", "b": "Indem man nur noch kalte Getränke bestellt.", "c": "Indem man eigenes Besteck von zu Hause mitbringt." }, "answer": "a", "explanation": "a ist richtig: Mit der App wird kein Geld abgebucht, solange man die Schale binnen sieben Tagen zurückgibt." }
+          ]
+        }
+      ]
+    },
+    {
+      "family": "HV2",
+      "part": 2,
+      "title": "Hören Teil 2: Radiointerview — Schlaf- und Chronobiologie",
+      "playback": { "practice": 1, "mock": 2 },
+      "recordings": [
+        {
+          "id": "hv2-01",
+          "mediaId": "goethe-zertifikat-b2.hv2.01.audio",
+          "mediaVersion": "v1",
+          "label": "Radiointerview · Innere Uhr & Arbeitszeiten",
+          "transcript": "[Moderator]: Willkommen bei „Wissen heute“. Mein Gast ist Prof. Dr. Henrik Baumann, Chronobiologe an der Universität Würzburg. Herr Professor Baumann, stimmt es, dass der frühe Schul- und Arbeitsbeginn vielen Menschen tatsächlich gesundheitlich schadet?\n[Prof. Baumann]: Für einen erheblichen Teil der Bevölkerung stimmt das leider. Unsere innere biologische Uhr ist weitgehend genetisch festgelegt. Während sogenannte Frühtypen bereits um sechs Uhr morgens hellwach sind, erreichen späte Chronotypen ihre volle geistige Leistungsfähigkeit oft erst am späten Vormittag. Wer dauerhaft gegen seinen eigenen Rhythmus lebt, leidet unter dem sogenannten sozialen Jetlag.\n[Moderator]: Kann man seine innere Uhr nicht einfach durch Disziplin umstellen?\n[Prof. Baumann]: Nur in sehr engen Grenzen. Natürlich hilft es, morgens viel Tageslicht zu tanken und abends grelles Bildschirmlicht zu reduzieren. Aber ein ausgeprägter Abendmensch wird auch nach Jahren des frühen Aufstehens nicht plötzlich ein glücklicher Frühaufsteher. Das ist keine Frage von Faulheit, sondern von Biologie.\n[Moderator]: Welche Folgen hat dieser chronische Schlafmangel?\n[Prof. Baumann]: Kurzfristig sinken Aufmerksamkeit und Reaktionsvermögen, was im Straßenverkehr und in Berufen mit hoher Verantwortung gefährlich werden kann. Langfristig erhöhen Schlafdefizite das Risiko für Herz-Kreislauf-Erkrankungen und Stoffwechselstörungen. Gleichzeitig zeigen Modellversuche an Schulen, dass schon ein um dreißig Minuten späterer Unterrichtsbeginn die Konzentration Jugendlicher messbar verbessert.\n[Moderator]: Und was können Unternehmen tun, um darauf Rücksicht zu nehmen?\n[Prof. Baumann]: Wo keine festen Kundenzeiten zwingend sind, wirken echte Gleitzeitmodelle Wunder. Wenn Frühtypen um sieben Uhr starten und Spättypen erst um zehn, sinken Krankheitstage und Fehlerquoten. Selbst in der Schichtarbeit lässt sich viel verbessern, indem Schichten vorwärts – also von früh über spät nach Nacht – rotieren statt rückwärts.",
+          "questions": [
+            { "n": 11, "question": "Wodurch wird die innere biologische Uhr laut Prof. Baumann hauptsächlich bestimmt?", "options": { "a": "Weitgehend durch genetische Veranlagung.", "b": "Ausschließlich durch die Ernährung im Kindesalter.", "c": "Durch den jeweiligen Beruf der Eltern." }, "answer": "a", "explanation": "a ist richtig: Er erklärt, unsere innere biologische Uhr sei weitgehend genetisch festgelegt." },
+            { "n": 12, "question": "Was versteht man laut Interview unter „sozialem Jetlag“?", "options": { "a": "Müdigkeit nach langen Interkontinentalflügen.", "b": "Dauerhaftes Leben gegen den eigenen biologischen Rhythmus.", "c": "Übermäßige Nutzung sozialer Netzwerke vor dem Schlafengehen." }, "answer": "b", "explanation": "b ist richtig: Wer dauerhaft gegen seinen eigenen Rhythmus lebt, leidet unter sozialem Jetlag." },
+            { "n": 13, "question": "Lässt sich ein ausgeprägter Abendmensch durch Disziplin dauerhaft zum Frühaufsteher machen?", "options": { "a": "Ja, innerhalb von zwei Wochen problemlos.", "b": "Nein, nur in sehr engen Grenzen – es ist eine Frage der Biologie.", "c": "Nur durch vollständigen Verzicht auf Kaffee." }, "answer": "b", "explanation": "b ist richtig: Umstellung gelingt nur in engen Grenzen; es ist Biologie, nicht Faulheit." },
+            { "n": 14, "question": "Was ergaben Modellversuche an Schulen?", "options": { "a": "Ein 30 Minuten späterer Unterrichtsbeginn verbessert die Konzentration messbar.", "b": "Jugendliche lernen um 7 Uhr morgens am effektivsten.", "c": "Späterer Unterrichtsbeginn führt zu mehr Fehlzeiten." }, "answer": "a", "explanation": "a ist richtig: Schon dreißig Minuten späterer Beginn verbessern die Konzentration Jugendlicher messbar." },
+            { "n": 15, "question": "Welchen Nutzen haben echte Gleitzeitmodelle in Unternehmen?", "options": { "a": "Sie senken Krankheitstage und Fehlerquoten.", "b": "Sie verkürzen die wöchentliche Arbeitszeit automatisch um fünf Stunden.", "c": "Sie machen sämtliche Teambesprechungen überflüssig." }, "answer": "a", "explanation": "a ist richtig: Wenn Früh- und Spättypen nach ihrem Rhythmus starten, sinken Krankheitstage und Fehlerquoten." },
+            { "n": 16, "question": "Wie sollten Schichten laut Prof. Baumann idealerweise rotieren?", "options": { "a": "Rückwärts von Nacht über spät nach früh.", "b": "Vorwärts von früh über spät nach Nacht.", "c": "Jeden Tag zufällig wechselnd." }, "answer": "b", "explanation": "b ist richtig: Er empfiehlt Vorwärtsrotation von früh über spät nach Nacht." }
+          ]
+        }
+      ]
+    },
+    {
+      "family": "HV3",
+      "part": 3,
+      "title": "Hören Teil 3: Gespräch — Gemeinsames Wohnprojekt auf dem Land",
+      "playback": { "practice": 1, "mock": 1 },
+      "recordings": [
+        {
+          "id": "hv3-01",
+          "mediaId": "goethe-zertifikat-b2.hv3.01.audio",
+          "mediaVersion": "v1",
+          "label": "Gespräch · Erfahrungen mit einem Mehrgenerationenhaus",
+          "transcript": "[Moderatorin]: Heute spreche ich mit Katja und Daniel, die vor zwei Jahren aus Berlin in ein Mehrgenerationen-Wohnprojekt auf einem ehemaligen Bauernhof in Brandenburg gezogen sind. Katja, was war für dich der wichtigste Beweggrund?\n[Katja]: Vor allem die Gemeinschaft im Alltag. In der Großstadt kannten wir zwar viele Leute, aber im Haus blieb jeder für sich. Hier teilen wir uns eine große Werkstatt, einen Gemüsegarten und helfen uns gegenseitig bei der Kinderbetreuung. Das entlastet enorm.\n[Daniel]: Mir war zusätzlich wichtig, dass wir energieautark leben können. Wir haben gemeinsam eine große Photovoltaikanlage und eine zentrale Hackschnitzelheizung finanziert – das hätte sich eine einzelne Familie niemals leisten können.\n[Moderatorin]: Klingt fast zu schön, um wahr zu sein. Gab es auch Konflikte?\n[Katja]: Oh ja, definitiv! Gerade im ersten Jahr haben wir stundenlang über scheinbare Kleinigkeiten diskutiert – etwa wie ordentlich der Gemeinschaftsraum abends hinterlassen werden muss. Inzwischen haben wir klare Zuständigkeiten und eine externe Moderatorin für unsere halbjährlichen Treffen.\n[Daniel]: Für mich war die größte Umstellung eigentlich der Arbeitsweg. Zweimal pro Woche pendle ich mit dem Regionalzug ins Büro nach Berlin. Wenn der Zug Verspätung hat, verliere ich schnell anderthalb Stunden. Zum Glück kann ich die anderen drei Tage im Homeoffice arbeiten.\n[Moderatorin]: Würdet ihr anderen Familien raten, einen ähnlichen Schritt zu wagen?\n[Katja]: Ja, aber man sollte unbedingt ein Jahr lang an den Planungstreffen teilnehmen, bevor man Geld investiert, damit man merkt, ob die Werte wirklich zusammenpassen.\n[Daniel]: Und man braucht ein realistisches finanzielles Polster für unerwartete Sanierungskosten – alte Bauernhöfe halten immer Überraschungen bereit!",
+          "questions": [
+            { "n": 17, "question": "Wer nennt die gegenseitige Hilfe bei der Kinderbetreuung als großen Vorteil?", "options": { "a": "Moderatorin", "b": "Katja", "c": "Daniel" }, "answer": "b", "explanation": "b (Katja): Sie betont die gemeinsame Werkstatt, den Garten und die gegenseitige Kinderbetreuung." },
+            { "n": 18, "question": "Wer hebt die gemeinsam finanzierte Photovoltaikanlage hervor?", "options": { "a": "Moderatorin", "b": "Katja", "c": "Daniel" }, "answer": "c", "explanation": "c (Daniel): Ihm war das energieautarke Leben mit Photovoltaik und Hackschnitzelheizung wichtig." },
+            { "n": 19, "question": "Wer berichtet von langen Diskussionen über Ordnung im Gemeinschaftsraum?", "options": { "a": "Moderatorin", "b": "Katja", "c": "Daniel" }, "answer": "b", "explanation": "b (Katja): Sie erzählt von den stundenlangen Diskussionen im ersten Jahr und der externen Moderatorin." },
+            { "n": 20, "question": "Wer pendelt zweimal pro Woche mit dem Regionalzug nach Berlin?", "options": { "a": "Moderatorin", "b": "Katja", "c": "Daniel" }, "answer": "c", "explanation": "c (Daniel): Er nennt den Arbeitsweg mit dem Regionalzug als größte Umstellung." },
+            { "n": 21, "question": "Wer rät dazu, vor einer Investition ein Jahr lang an Planungstreffen teilzunehmen?", "options": { "a": "Moderatorin", "b": "Katja", "c": "Daniel" }, "answer": "b", "explanation": "b (Katja): Sie empfiehlt, ein Jahr lang mitzuplanen, um die gemeinsamen Werte zu prüfen." },
+            { "n": 22, "question": "Wer warnt vor unerwarteten Sanierungskosten bei alten Gebäuden?", "options": { "a": "Moderatorin", "b": "Katja", "c": "Daniel" }, "answer": "c", "explanation": "c (Daniel): Er rät zu einem finanziellen Polster für unerwartete Sanierungskosten." }
+          ]
+        }
+      ]
+    },
+    {
+      "family": "HV4",
+      "part": 4,
+      "title": "Hören Teil 4: Vortrag — Die Geschichte und Zukunft des Übersetzens",
+      "playback": { "practice": 1, "mock": 2 },
+      "recordings": [
+        {
+          "id": "hv4-01",
+          "mediaId": "goethe-zertifikat-b2.hv4.01.audio",
+          "mediaVersion": "v1",
+          "label": "Vortrag · Maschinelle Übersetzung & menschliche Sprachmittlung",
+          "transcript": "[Vortragende]: Guten Abend, meine Damen und Herren! Ich freue mich sehr, heute über ein Thema zu sprechen, das unseren Beruf in den letzten zehn Jahren grundlegend verändert hat: das Verhältnis zwischen maschineller Übersetzung und menschlicher Sprachmittlung.\n\nNoch vor zwanzig Jahren lieferten Übersetzungsprogramme oft unfreiwillig komische Ergebnisse, weil sie Wörter nahezu isoliert übertrugen. Mit der Einführung neuronaler Netze hat sich die Qualität dramatisch verbessert. Für einfache Gebrauchsanweisungen, schnelle E-Mails oder das grobe Verstehen fremdsprachiger Nachrichten sind diese Werkzeuge heute eine enorme Erleichterung.\n\nDennoch wäre es ein schwerer Irrtum zu glauben, dass menschliche Übersetzerinnen und Übersetzer bald überflüssig werden. Warum? Weil Sprache weit mehr ist als ein Austausch von Vokabeln. In juristischen Verträgen kann ein einziges ungenau gewähltes Verb schwerwiegende Haftungsfolgen auslösen. Und in der Literatur, im Marketing oder in der Diplomatie kommt es auf Zwischentöne, kulturelle Anspielungen und Ironie an – Bereiche, in denen Maschinen noch immer häufig danebenliegen.\n\nBesonders deutlich wird das Phänomen beim sogenannten Post-Editing: Viele Fachübersetzerinnen arbeiten heute nicht mehr bei null, sondern prüfen, korrigieren und verfeinern maschinelle Rohfassungen. Das beschleunigt zwar den Prozess, verlangt aber höchste Konzentration, weil flüssig klingende Maschinenfehler viel schwerer zu entdecken sind als offensichtlich holprige Sätze.\n\nDeshalb verändert sich auch die Ausbildung an den Hochschulen. Neben hervorragenden Sprachkenntnissen gewinnen Fächer wie Terminologiemanagement, interkulturelle Beratung und kritische Qualitätsprüfung stark an Bedeutung. Mein Fazit für heute Abend lautet daher: Die Technik nimmt uns Routinearbeit ab, aber die Verantwortung für Bedeutung, Tonfall und Verlässlichkeit bleibt eine zutiefst menschliche Aufgabe. Vielen Dank für Ihre Aufmerksamkeit!",
+          "questions": [
+            { "n": 23, "question": "Warum lieferten frühe Übersetzungsprogramme oft komische Ergebnisse?", "options": { "a": "Weil sie Wörter weitgehend isoliert übersetzten.", "b": "Weil sie nur für zwei Sprachen programmiert waren.", "c": "Weil sie keine Großbuchstaben kannten." }, "answer": "a", "explanation": "a ist richtig: Vor zwanzig Jahren übertrugen Programme Wörter nahezu isoliert." },
+            { "n": 24, "question": "Wofür eignen sich neuronale Übersetzungswerkzeuge laut Vortrag besonders gut?", "options": { "a": "Für komplexe internationale Gerichtsverträge ohne Prüfung.", "b": "Für einfache Gebrauchsanweisungen und schnelles Textverständnis.", "c": "Für ironische Gedichte und Wortspiele." }, "answer": "b", "explanation": "b ist richtig: Sie sind eine Erleichterung für Gebrauchsanweisungen, schnelle E-Mails und grobes Verstehen." },
+            { "n": 25, "question": "Welches Risiko nennt die Vortragende bei juristischen Verträgen?", "options": { "a": "Dass ein einziges ungenaues Verb ernste Haftungsfolgen haben kann.", "b": "Dass die Dokumente zu lang werden.", "c": "Dass Maschinen keine Zahlen übersetzen können." }, "answer": "a", "explanation": "a ist richtig: Ein einziges ungenau gewähltes Verb kann schwerwiegende Haftungsfolgen auslösen." },
+            { "n": 26, "question": "Wo stoßen Maschinen laut Vortrag weiterhin häufig an Grenzen?", "options": { "a": "Bei einfachen Datumsangaben.", "b": "Bei Zwischentönen, kulturellen Anspielungen und Ironie.", "c": "Bei technischen Produktlisten." }, "answer": "b", "explanation": "b ist richtig: Literatur, Marketing und Diplomatie erfordern Gespür für Zwischentöne, Anspielungen und Ironie." },
+            { "n": 27, "question": "Was bedeutet „Post-Editing“ im Berufsalltag von Übersetzern?", "options": { "a": "Das nachträgliche Drucken von Büchern.", "b": "Das Prüfen, Korrigieren und Verfeinern maschineller Rohfassungen.", "c": "Das vollständige Verbot von Software im Büro." }, "answer": "b", "explanation": "b ist richtig: Fachübersetzerinnen prüfen und verfeinern maschinelle Rohfassungen." },
+            { "n": 28, "question": "Warum erfordert Post-Editing besonders hohe Konzentration?", "options": { "a": "Weil flüssig klingende Maschinenfehler schwer zu entdecken sind.", "b": "Weil man dabei laut vorlesen muss.", "c": "Weil die Texte immer handschriftlich vorliegen." }, "answer": "a", "explanation": "a ist richtig: Flüssig klingende Fehler fallen viel weniger auf als offensichtlich holprige Sätze." },
+            { "n": 29, "question": "Welche Kompetenzen werden in der Hochschulausbildung immer wichtiger?", "options": { "a": "Handschriftliches Stenografieren.", "b": "Terminologiemanagement, interkulturelle Beratung und Qualitätsprüfung.", "c": "Ausschließlich das Auswendiglernen von Wörterbüchern." }, "answer": "b", "explanation": "b ist richtig: Genau diese drei Bereiche nennt die Vortragende ausdrücklich." },
+            { "n": 30, "question": "Wie lautet das zentrale Fazit des Vortrags?", "options": { "a": "Maschinen werden bald alle Sprachberufe vollständig ersetzen.", "b": "Technik übernimmt Routine, aber Verantwortung für Bedeutung und Tonfall bleibt menschlich.", "c": "Maschinelle Übersetzung sollte im Berufsleben verboten werden." }, "answer": "b", "explanation": "b ist richtig: Im Schlusssatz betont sie, die Verantwortung für Bedeutung, Tonfall und Verlässlichkeit bleibe menschlich." }
+          ]
+        }
+      ]
+    }
+  ]
+}
