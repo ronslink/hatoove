@@ -465,6 +465,8 @@ const PUBLIC_FILES = Object.freeze([
   path.join(PUBLIC_DIR, 'index.html'),
   path.join(PUBLIC_DIR, 'telc-deutsch-b1.html'),
   path.join(PUBLIC_DIR, 'dtz-a2-b1.html'),
+  path.join(PUBLIC_DIR, 'impressum.html'),
+  path.join(PUBLIC_DIR, 'datenschutz.html'),
   path.join(PUBLIC_DIR, 'site.css'),
   path.join(PUBLIC_DIR, 'site.js'),
   // CRAWLER FILES ARE PUBLIC BY NECESSITY. A `robots.txt` or sitemap behind the session gate answers
