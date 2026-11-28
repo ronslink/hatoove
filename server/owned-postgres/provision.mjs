@@ -71,7 +71,7 @@
  */
 
 import pg from 'pg';
-import { importDefaultPackage, importBundledDtzPackage, promoteBundledDtzAvailable, importBundledGoetheB1Package, promoteBundledGoetheB1Available, importBundledTelcB2Package, promoteBundledTelcB2Available } from './package-importer.mjs';
+import { importDefaultPackage, importBundledDtzPackage, promoteBundledDtzAvailable, importBundledGoetheB1Package, promoteBundledGoetheB1Available, importBundledTelcB2Package, promoteBundledTelcB2Available, importBundledGoetheB2Package } from './package-importer.mjs';
 import { applyDtzApprovedReviews } from './dtz-review-approval.mjs';
 import { applyGoetheB1ApprovedReviews } from './goethe-b1-review-approval.mjs';
 import { applyTelcB2ApprovedReviews } from './telc-b2-review-approval.mjs';
@@ -394,6 +394,7 @@ export async function provisionPersistent({ config = persistentConfig() } = {}) 
     await importBundledTelcB2Package(migrationPool);
     await applyTelcB2ApprovedReviews(migrationPool);
     await promoteBundledTelcB2Available(migrationPool);
+    await importBundledGoetheB2Package(migrationPool);
     for (const role of ['auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner']) opened[role] = persistentRolePool(config, role);
     const pools = {
       config,
@@ -438,6 +439,7 @@ export async function migrate({ config = persistentConfig() } = {}) {
     await importBundledTelcB2Package(migrationPool);
     await applyTelcB2ApprovedReviews(migrationPool);
     await promoteBundledTelcB2Available(migrationPool);
+    await importBundledGoetheB2Package(migrationPool);
     return { ...result, schema: config.schema };
   } finally {
     if (migrationPool) await migrationPool.end().catch(() => {});
