@@ -44,9 +44,9 @@ export const GOETHE_B1_APPROVED_SUBJECTS = Object.freeze([
   Object.freeze({ kind: 'content', id: 'goethe-zertifikat-b1.writing.original01.b@v1', version: '', sha256: '32bebce377f951f039c8bb3c403faeadad1214de2810e3dba41481b0851ffa7a', category: 'educational', language: '' }),
   Object.freeze({ kind: 'content', id: 'writing.goethe-b1@v1', version: '', sha256: 'a28c3b736ca680ff8a983055356ab719182c06d1ba6d1f095e0bc63bf5c6cdf0', category: 'educational', language: '' }),
   Object.freeze({ kind: 'blueprint', id: 'goethe-zertifikat-b1', version: 'v2', sha256: '05eb4179cbcd015fd56e1e9bf4a5cea7d43da56cc2b9d4736879803998c8d703', category: 'exam_format', language: '' }),
-  Object.freeze({ kind: 'form', id: 'goethe-zertifikat-b1.complete.original01', version: 'v1', sha256: '6412cc6de1468aea39758b3cf5020b468b9bd8d1582395ed2ceac24f9eb725c8', category: 'exam_format', language: '' }),
-  Object.freeze({ kind: 'form', id: 'goethe-zertifikat-b1.listening.practice', version: 'v1', sha256: '40180cf6aefbb34919dba24bad0602732902e31f7765fa4f266771d3489063e1', category: 'exam_format', language: '' }),
-  Object.freeze({ kind: 'form', id: 'goethe-zertifikat-b1.listening.mock', version: 'v1', sha256: '285dda42de7d0ed9c16c53dc97d65dd73409e62ad48035167939ba6e33656a8e', category: 'exam_format', language: '' }),
+  Object.freeze({ kind: 'form', id: 'goethe-zertifikat-b1.complete.original01', version: 'v1', sha256: 'ea88499cd6cef94bd3713ad6094818c5dd8c1a0d13f7562175898f9015ff1c40', category: 'exam_format', language: '' }),
+  Object.freeze({ kind: 'form', id: 'goethe-zertifikat-b1.listening.practice', version: 'v1', sha256: 'd29ea1ecef6042c9d24953a9edadca7b7bfd2fd059ab4f6fe5e901d5ffb20081', category: 'exam_format', language: '' }),
+  Object.freeze({ kind: 'form', id: 'goethe-zertifikat-b1.listening.mock', version: 'v1', sha256: '047e80057a7baf8bbf47448512f30c85a2f9980699d4085289ce5e5344946755', category: 'exam_format', language: '' }),
 ]);
 
 export function deterministicGoetheB1EventUuid(key, namespace = GOETHE_B1_APPROVAL_META.eventNamespace) {

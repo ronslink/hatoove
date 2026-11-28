@@ -204,7 +204,7 @@ check('listening-package.json (v2) passes validatePackage and all 8 WAV files ma
     ...validated.writingTasks.map((t) => [`content:${t.taskId}@${t.version}:`, packageHash(t)]),
     ...validated.rubrics.map((r) => [`content:${r.rubricId}@${r.version}:`, packageHash(r)]),
     [`blueprint:${validated.exam.id}:${validated.blueprint.version}`, packageHash({ exam: validated.exam, blueprint: validated.blueprint })],
-    ...validated.forms.map((f) => [`form:${f.id}:${f.version}`, packageHash({ examId: validated.exam.id, blueprintVersion: validated.blueprint.version, form: f })]),
+    ...validated.forms.map((f) => [`form:${f.id}:${f.version}`, packageHash({ blueprintVersion: validated.blueprint.version, form: f })]),
   ]);
   assert.equal(GOETHE_B1_APPROVED_SUBJECTS.length, expected.size, 'approval list covers every v2 subject');
   for (const item of GOETHE_B1_APPROVED_SUBJECTS) {
