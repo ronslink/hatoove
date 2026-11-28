@@ -2,7 +2,6 @@
 import process from 'node:process';
 import {persistentConfig,persistentRolePool} from './owned-postgres/provision.mjs';
 import {createWorker} from './owned-postgres/worker.mjs';
-import {readDeepSeekConfig,createDeepSeekGrader} from './writing-grader-deepseek.mjs';
 const USAGE='Usage: node server/worker.mjs [--once] [--interval=<ms>] [--max-iterations=<n>]\nRequires OWNAPI_PG_DATABASE and OWNAPI_PG_USER.';
 const codes=new Set(['grader_error','invalid_assessment','unsupported_rubric','content_unavailable','retry_exhausted','attempt_deleted','dispatch_not_started','claim_stale','lease_reclaimed']);
 function parse(argv){
@@ -22,12 +21,12 @@ export async function main(argv=process.argv.slice(2)){
  let options,config,pool,worker,exit=0,cancelSleep=null,stopping=false;
  try{options=parse(argv);}catch{error('worker_arguments_invalid');return 2;}
  if(options.help){console.log(USAGE);return 0;}
- let graderConfig;
- try{if(!process.env.OWNAPI_PG_DATABASE||!process.env.OWNAPI_PG_USER)throw Error();config=persistentConfig();graderConfig=readDeepSeekConfig(process.env);}catch{error('worker_configuration_invalid');return 2;}
+ let graderConfig={mode:'stub'},graderModule=null;
+ try{if(!process.env.OWNAPI_PG_DATABASE||!process.env.OWNAPI_PG_USER)throw Error();config=persistentConfig();const rawMode=(process.env.HATOVE_GRADER_MODE||'').trim().toLowerCase();if(rawMode&&rawMode!=='stub'){graderModule=await import('./writing-grader-deepseek.mjs');graderConfig=graderModule.readDeepSeekConfig(process.env);}}catch{error('worker_configuration_invalid');return 2;}
  const stop=signal=>{stopping=true;console.log(JSON.stringify({event:'worker_stopping',signal}));cancelSleep?.();};
  const interrupt=()=>stop('SIGINT'),terminate=()=>stop('SIGTERM');
  try{
-  try{pool=persistentRolePool(config,'worker',{allocation:'worker-runner'});pool.on('error',()=>{error('worker_iteration_failed');exit=1;stopping=true;cancelSleep?.();});const grade=graderConfig.mode==='live'?createDeepSeekGrader({pool,apiKey:graderConfig.apiKey,model:graderConfig.model,endpoint:graderConfig.endpoint,dailyUsdLimit:graderConfig.dailyUsdLimit}):undefined;worker=createWorker({pool,...(grade?{grade}:{})});}catch{error('worker_initialization_failed');exit=1;}
+  try{pool=persistentRolePool(config,'worker',{allocation:'worker-runner'});pool.on('error',()=>{error('worker_iteration_failed');exit=1;stopping=true;cancelSleep?.();});const grade=graderConfig.mode==='live'?graderModule.createDeepSeekGrader({pool,apiKey:graderConfig.apiKey,model:graderConfig.model,endpoint:graderConfig.endpoint,dailyUsdLimit:graderConfig.dailyUsdLimit}):undefined;worker=createWorker({pool,...(grade?{grade}:{})});}catch{error('worker_initialization_failed');exit=1;}
   if(!exit){
    process.on('SIGINT',interrupt);process.on('SIGTERM',terminate);console.log(JSON.stringify({event:'worker_started'}));
    try{for(let n=0;!stopping&&n<options.maxIterations;n++){
