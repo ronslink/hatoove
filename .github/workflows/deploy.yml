@@ -56,18 +56,17 @@ jobs:
           echo "Target commit is $rev"
           # Ensure commit is on origin/main
           git merge-base --is-ancestor "$rev" origin/main
-          if [ "$EVENT_NAME" = "workflow_run" ]; then
             for wf in "ci.yml" "pilot-contracts.yml"; do
               conclusion="$(gh api "repos/$REPO/actions/workflows/$wf/runs?head_sha=$rev&per_page=5" --jq '.workflow_runs[0].conclusion // "none"')"
               status="$(gh api "repos/$REPO/actions/workflows/$wf/runs?head_sha=$rev&per_page=5" --jq '.workflow_runs[0].status // "none"')"
               echo "Workflow $wf -> status=$status conclusion=$conclusion"
               if [ "$status" != "completed" ] || [ "$conclusion" != "success" ]; then
                 echo "Waiting for $wf to complete with success before deploying $rev."
+                if [ "$EVENT_NAME" = "workflow_dispatch" ]; then exit 1; fi
                 echo "ready=false" >> "$GITHUB_OUTPUT"
                 exit 0
               fi
             done
-          fi
           echo "ready=true" >> "$GITHUB_OUTPUT"
         id: gate
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -86,8 +85,10 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           set -euo pipefail
+          test -n "$DEEPSEEK_API_KEY"
           rev="$(git rev-parse HEAD)"
           short="${rev:0:7}"
           ops="/opt/hatoove/ops/ci-${short}-$(date -u +%Y%m%dT%H%M%SZ)"
@@ -106,6 +107,7 @@ jobs:
           target="${DEPLOY_USER}@${DEPLOY_HOST}"
 
           ssh "${ssh_opts[@]}" "$target" "mkdir -p -m 0700 '$ops'"
+          printf '%s' "$DEEPSEEK_API_KEY" | ssh "${ssh_opts[@]}" "$target" "umask 077; cat > '$ops/deepseek_api_key'"
           scp "${ssh_opts[@]}" "$archive" "deploy/deploy-release.sh" "$target:$ops/"
           ssh "${ssh_opts[@]}" "$target" "chmod 0700 '$ops/deploy-release.sh' && '$ops/deploy-release.sh' '$rev' '$ops/hatoove-${short}.tar' '$sha'"
       - name: Verify public production routes after deployment

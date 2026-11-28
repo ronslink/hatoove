@@ -45,8 +45,8 @@ function readSecretFile(filePath) {
 }
 
 /**
- * Parse opt-in live grader configuration from environment variables.
- * Returns `{ mode: 'stub' }` when `HATOVE_GRADER_MODE` is unset or `'stub'`.
+ * Parse live grader configuration; live is the default and requires a credential.
+ * Stub mode requires both explicit `HATOVE_GRADER_MODE=stub` and `NODE_ENV=test`.
  * Throws `{ code: 'grader_configuration_invalid' }` on invalid mode, missing key, or invalid daily limit.
  */
 export function readDeepSeekConfig(env = process.env) {

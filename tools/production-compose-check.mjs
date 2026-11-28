@@ -84,7 +84,10 @@ export function assertProductionModel(model, variant, {liveGrading=false}={}) {
     const environment = service.environment ?? {};
     const graderKeys=liveGrading&&name==='worker'?['DEEPSEEK_API_KEY_FILE','DEEPSEEK_MODEL']:[];
     requireThat(!keys(environment).some(key => !graderKeys.includes(key)&&/(?:^PGPASSWORD$|^PGSSLMODE$|^NODE_OPTIONS$|^NODE_TLS_|STRIPE|DEEPSEEK|OPENAI|SERVE_REVIEW|SERVE_RIGHTS|_PASSWORD$)/.test(key)), 'secret_or_policy_environment_leak');
-    if(liveGrading&&name==='worker') requireThat(environment.NODE_ENV==='production'&&environment.HATOVE_GRADER_MODE==='live'&&environment.DEEPSEEK_MODEL==='deepseek-flash'&&environment.DEEPSEEK_API_KEY_FILE==='/run/secrets/deepseek_api_key'&&Number(environment.HATOVE_GRADER_DAILY_USD_LIMIT)>0&&Number(environment.HATOVE_GRADER_DAILY_USD_LIMIT)<=10000,'invalid_live_grading_configuration');
+    if(liveGrading&&name==='worker') {
+      const limit=String(environment.HATOVE_GRADER_DAILY_USD_LIMIT??'').trim();
+      requireThat(environment.NODE_ENV==='production'&&environment.HATOVE_GRADER_MODE==='live'&&environment.DEEPSEEK_MODEL==='deepseek-flash'&&environment.DEEPSEEK_API_KEY_FILE==='/run/secrets/deepseek_api_key'&&/^\d+(\.\d{1,4})?$/.test(limit)&&Number(limit)>0&&Number(limit)<=10000,'invalid_live_grading_configuration');
+    }
     for (const mount of service.volumes ?? []) requireThat(!String(mount.source).includes('docker.sock'), 'docker_socket_mounted');
   }
   requireThat(services.app.image === services.worker.image && services.app.image === services.migrate.image, 'runtime_image_drift');
@@ -255,6 +258,14 @@ function runComposeChecks() {
       rejected(()=>assertProductionModel(inline,variant,{liveGrading:true}),'inline_grading_key_accepted');
       const stub=structuredClone(live);stub.services.worker.environment.HATOVE_GRADER_MODE='stub';
       rejected(()=>assertProductionModel(stub,variant,{liveGrading:true}),'production_stub_accepted');
+      for(const limit of ['1e1','1.00001','0','10000.0001','Infinity','-1']) {
+        const invalid=structuredClone(live);invalid.services.worker.environment.HATOVE_GRADER_DAILY_USD_LIMIT=limit;
+        rejected(()=>assertProductionModel(invalid,variant,{liveGrading:true}),'invalid_grading_budget_accepted');
+      }
+      for(const limit of ['0.0001','15','10000',' 1.0000 ']) {
+        const valid=structuredClone(live);valid.services.worker.environment.HATOVE_GRADER_DAILY_USD_LIMIT=limit;
+        assertProductionModel(valid,variant,{liveGrading:true});
+      }
     }
     requireThat(managed.services.app.environment.OWNAPI_PG_TLS_CA_FILE == null, 'optional_ca_not_absent');
     const managedCA = render(['managed'],{OWNAPI_PG_TLS_CA_FILE:'/run/hatoove/pg-trust/provider-ca.pem'});

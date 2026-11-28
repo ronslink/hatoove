@@ -61,6 +61,8 @@ jobs:
         run: node tools/design-check.mjs
       - name: Production deployment source boundaries
         run: node tools/production-compose-check.mjs
+      - name: Production release argument and preflight boundaries
+        run: node tools/deploy-release-check.mjs
       # Not PostgreSQL-backed, so they belong on both OSes with the rest of the offline set.
       # THE NEGATIVE CHECK FOR THE RETIRED FILE STORE. `progress-scope-check` used to sit here and is
       # gone with the route it drove (see work/implementation/RETIRED-CHECKS.md); this is its
