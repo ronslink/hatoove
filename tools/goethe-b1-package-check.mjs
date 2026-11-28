@@ -9,8 +9,10 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { validatePackage, validateCompleteForm } from '../server/package-contract.mjs';
+import { validatePackage, validateCompleteForm, packageHash } from '../server/package-contract.mjs';
 import { parsePcmWav } from '../server/media-contract.mjs';
+import { GOETHE_B1_APPROVED_SUBJECTS } from '../server/owned-postgres/goethe-b1-review-approval.mjs';
+import { buildBundledGoetheB1AvailablePackage } from '../server/owned-postgres/package-importer.mjs';
 import { supportedWritingPolicy, GOETHE_B1_POLICY, GOETHE_B1_KIND, GOETHE_B1_KEYS } from '../server/writing-policy.mjs';
 import { stubGrade, validateAssessment } from '../server/owned-postgres/worker.mjs';
 import { buildWritingPrompt, parseDeepSeekAssessment } from '../server/writing-grader-deepseek.mjs';
@@ -195,6 +197,25 @@ check('listening-package.json (v2) passes validatePackage and all 8 WAV files ma
     const wav = parsePcmWav(bytes);
     assert.equal(wav.durationMs, m.durationMs, `${m.mediaId} durationMs mismatch`);
   }
+
+  const expected = new Map([
+    ...validated.media.map((m) => [`content:${m.mediaId}@${m.version}:`, packageHash(m)]),
+    ...validated.sets.map((s) => [`content:${s.setId}@${s.version}:`, packageHash(s)]),
+    ...validated.writingTasks.map((t) => [`content:${t.taskId}@${t.version}:`, packageHash(t)]),
+    ...validated.rubrics.map((r) => [`content:${r.rubricId}@${r.version}:`, packageHash(r)]),
+    [`blueprint:${validated.exam.id}:${validated.blueprint.version}`, packageHash({ exam: validated.exam, blueprint: validated.blueprint })],
+    ...validated.forms.map((f) => [`form:${f.id}:${f.version}`, packageHash({ examId: validated.exam.id, blueprintVersion: validated.blueprint.version, form: f })]),
+  ]);
+  assert.equal(GOETHE_B1_APPROVED_SUBJECTS.length, expected.size, 'approval list covers every v2 subject');
+  for (const item of GOETHE_B1_APPROVED_SUBJECTS) {
+    const key = `${item.kind}:${item.id}:${item.version}`;
+    assert.equal(item.sha256, expected.get(key), `approved sha mismatch for ${key}`);
+  }
+  const availablePkg = validatePackage(buildBundledGoetheB1AvailablePackage(validated));
+  assert.equal(availablePkg.release.version, 'v3');
+  assert.equal(availablePkg.release.state, 'available');
+  assert.equal(availablePkg.sets.length, 0);
+  assert.equal(availablePkg.media.length, 0);
 });
 
 console.log(`Goethe-Zertifikat B1 package check: ${passed} passed, 0 failed.`);
