@@ -136,6 +136,13 @@ export async function readContentCoverage(client,{examId,releaseVersion,language
    }
   }
   const writing=[],refs=[];
+  if(payload.writingTasks!==undefined){
+   if(!Array.isArray(payload.writingTasks)||payload.writingTasks.length!==2)missing('writing_task',null,'malformed_required_tasks');
+   else for(const binding of payload.writingTasks){
+    if(!object(binding)||Object.keys(binding).some(k=>!['id','section','taskId','taskVersion'].includes(k)))missing('writing_task',null,'malformed_required_task');
+    else refs.push({...binding,bindingId:binding.id,id:null});
+   }
+  }
   if(payload.writingTask!==undefined){
    if(object(payload.writingTask)){
     if(Object.keys(payload.writingTask).some(k=>!['section','taskId','taskVersion'].includes(k)))missing('writing_task',null,'malformed_assigned_task');
@@ -154,7 +161,7 @@ export async function readContentCoverage(client,{examId,releaseVersion,language
     }else missing('writing_task',{groupId:group.id??null},'malformed_choice_reference');}
    }
   }
-  if(payload.writingTask!==undefined&&payload.writingChoices!==undefined)missing('writing_choices',null,'conflicting_writing_modes');
+  if([payload.writingTask,payload.writingTasks,payload.writingChoices].filter(v=>v!==undefined).length>1)missing('writing_choices',null,'conflicting_writing_modes');
   for(const requirement of requiredWriting){
    const options= requirement.interaction==='writing_choice'?['A','B']:[null];
    for(const option of options)if(!refs.some(r=>r.section===requirement.section&&(r.id??null)===option)){
@@ -176,7 +183,7 @@ export async function readContentCoverage(client,{examId,releaseVersion,language
   reports.push({formId:f.form_id,version:f.version,scope:payload.scope??'unknown',shapeValid,shapeValidation:'complete_supported_written',review,actual,requirementsBasis:'exact_blueprint',required:blueprint.payload?.sections??[],writing,
    referencesComplete,missingReferences,memberCounts:{required:requiredObjective.length,declared:declared.length,bound:members.length,resolved:actual.length},
    itemTotals:{required:sum(requiredObjective.map(p=>p.itemCount)),declared:sum(declared.map(m=>m?.itemCount)),bound:sum(members.map(m=>m.bound_item_count)),resolved:sum(actual.map(m=>m.itemCount))},
-   writingCounts:{requiredOptions:sum(requiredWriting.map(p=>p.interaction==='writing_choice'?2:1)),declaredOptions:refs.filter(r=>!r.missing).length,resolvedOptions:writing.filter(w=>w.present).length},
+   writingCounts:{requiredOptions:sum(requiredWriting.map(p=>p.interaction==='writing_choice'?2:p.itemCount)),declaredOptions:refs.filter(r=>!r.missing).length,resolvedOptions:writing.filter(w=>w.present).length},
    reviewComplete:referencesComplete&&formReviews.every(r=>r.review_status==='approved'&&r.review_basis==='named_decision'),
    rightsAllowed:referencesComplete&&formRows.length>0&&formRows.every(r=>contentPolicy().rights.includes(r.rights_status)),
    mediaVerified:formRows.some(r=>r.kind==='media')?formRows.filter(r=>r.kind==='media').every(r=>r.mediaVerified===true):null});

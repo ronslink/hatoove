@@ -54,7 +54,7 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
     const exam=(await client.query('SELECT * FROM exam_package WHERE exam_id=$1',[p.exam.id])).rows[0];
     if(exam && exam.exam_language!==p.exam.language) fail('exam language is immutable');
     if(!exam) plan('add exam '+p.exam.id,'INSERT INTO exam_package(exam_id,exam,level,exam_language,blueprint_version) VALUES($1,$2,$3,$4,$5)',
-      [p.exam.id,p.exam.title,p.exam.levelModel.levels?.join('–')||p.exam.levelModel.type,p.exam.language,p.blueprint.version]);
+      [p.exam.id,p.exam.title,p.exam.levelModel.levels?.join('–')||(p.exam.levelModel.type==='ielts-band-scale'?'Academic':p.exam.levelModel.type),p.exam.language,p.blueprint.version]);
     const blueprintHash=packageHash({exam:p.exam,blueprint:p.blueprint});
     const blueprint=(await client.query('SELECT sha256 FROM exam_blueprint WHERE exam_id=$1 AND version=$2',[p.exam.id,p.blueprint.version])).rows[0];
     if(blueprint && blueprint.sha256!==blueprintHash) fail('changed blueprint under existing version');
@@ -107,7 +107,7 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
         commands.push([`INSERT INTO rubric_version(rubric_id,version,family,criteria,max_total,content_version_id,exam_id,policy,feedback_kind)
           VALUES($1,$2,'writing',$3::jsonb,NULL,$4,$5,$6,$7)`,[r.rubricId,r.version,canonicalJson(r.criteria),cv,p.exam.id,r.policy,r.feedbackKind]]);
       }
-      rubrics.set(cv,old||{exam_id:r.examId,review_status:r.reviewStatus,rights_status:r.rightsStatus});
+      rubrics.set(cv,old||{exam_id:r.examId,family:r.family,review_status:r.reviewStatus,rights_status:r.rightsStatus});
     }
     for(const t of p.writingTasks||[]) {
       const cv=t.taskId+'@'+t.version,digest=packageHash(t);
@@ -190,10 +190,9 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
         }
         coverage.set(choice.section+':'+family,(coverage.get(choice.section+':'+family)||0)+1);
       }
-      if(f.writingTask) {
-        const binding=f.writingTask;
+      for(const binding of f.writingTask?[f.writingTask]:f.writingTasks??[]) {
         const t=writingTasks.get(binding.taskId+'@'+binding.taskVersion)||(await client.query(`SELECT t.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM task_version t JOIN reviewed_content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE task_id=$1 AND version=$2`,[binding.taskId,binding.taskVersion])).rows[0];
-        if(!t||t.exam_id!==p.exam.id||t.family!=='writing'||t.section!==binding.section||t.rubric_id!=='writing.telc-b1'||t.rubric_version!=='v1'||!['generated','licensed','commissioned'].includes(t.rights_status)) fail('missing or incompatible assigned writing');
+        if(!t||t.exam_id!==p.exam.id||t.family!=='writing'||t.section!==binding.section||(f.writingTask&&(t.rubric_id!=='writing.telc-b1'||t.rubric_version!=='v1'))||!['generated','licensed','commissioned'].includes(t.rights_status)) fail('missing or incompatible assigned writing');
         const r=rubrics.get(t.rubric_id+'@'+t.rubric_version)||(await client.query(`SELECT r.*,c.review_status,COALESCE(cr.basis,c.rights_status) AS rights_status FROM rubric_version r JOIN reviewed_content_version c USING(content_version_id) LEFT JOIN content_rights cr USING(content_version_id) WHERE rubric_id=$1 AND version=$2`,[t.rubric_id,t.rubric_version])).rows[0];
         if(!r||r.exam_id!==p.exam.id||r.family!=='writing'||!['generated','licensed','commissioned'].includes(r.rights_status)) fail('incompatible assigned rubric');
         if(p.release.state==='available'&&(t.review_status!=='approved'||r.review_status!=='approved')) fail('writing needs qualified review');
@@ -201,7 +200,7 @@ export async function importPackage(pool,input,{dryRun=false,publisher='content-
       }
       // A section label means every part of that declared section, exactly once.
       for(const id of f.sections) for(const part of p.blueprint.sections.find(s=>s.id===id).parts)
-        if(coverage.get(id+':'+part.family)!==1) fail('incomplete or repeated section coverage: '+id+'/'+part.family);
+        if(coverage.get(id+':'+part.family)!==(part.family==='writing'&&f.writingTasks?part.itemCount:1)) fail('incomplete or repeated section coverage: '+id+'/'+part.family);
       const largestSave={expectedRevision:2147483646,eventId:'00000000-0000-4000-8000-000000000000',responses:largestResponses,position:{member:f.members.length-1,item:99}};
       if(Buffer.byteLength(JSON.stringify(largestSave),'utf8')>BODY_LIMIT_BYTES) fail('form exceeds saved response byte limit');
       if(!old) {
@@ -298,6 +297,12 @@ export async function importBundledTelcB2Package(pool) {
 export async function importBundledGoetheB2Package(pool) {
   const goetheB2=JSON.parse(await readFile(new URL('../../content/exams/goethe-zertifikat-b2/listening-package.json',import.meta.url),'utf8'));
   return importPackage(pool,goetheB2,{publisher:'bundled-goethe-b2-source',activation:'if-missing'});
+}
+
+/** Reference-only v5 available release derived from the approved bundled DTZ v4 package. */
+export async function importBundledIeltsPackage(pool) {
+  const ielts=JSON.parse(await readFile(new URL('../../content/exams/ielts-academic/manifest.json',import.meta.url),'utf8'));
+  return importPackage(pool,ielts,{publisher:'bundled-ielts-academic-source',activation:'if-missing'});
 }
 
 /** Reference-only v5 available release derived from the approved bundled DTZ v4 package. */

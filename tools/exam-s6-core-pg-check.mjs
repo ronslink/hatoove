@@ -61,6 +61,17 @@ try {
    ["UPDATE exam_release SET manifest=jsonb_set(manifest,'{release,resumeBlockedReleases}','[\"v9801\"]') WHERE exam_id=$1 AND version=$2",[DTZ,'v9801']],
    ['DELETE FROM exam_release_head WHERE exam_id=$1',[DTZ]]])await altered(sql,args,async c=>assert.equal((await eligibility(c)).eligible,false));
  });
+ // The historical upgrade assertions above intentionally stop before 0049. Current adapters
+ // require all current migrations, so exercise continuation on a separate fully migrated fixture.
+ // Do not patch the historical schema or rewrite the frozen owner-approval migration for this test.
+ await db.cleanup();db=await createFixture();
+ world=await createPostgresWorld({fixture:db,examCatalogue:catalogue});
+ pkg=await publishCompleteDtzFixture(db,{mediaRoot,version:'v9800',availableVersion:'v9801'});
+ const currentSignup=await world.sessions.signUp({name:'Synthetic S6 current',email:'s6-current-'+randomUUID()+'@example.invalid',password:'synthetic-s6-current-password'});
+ owner=(await world.sessions.getSession({cookie:String(currentSignup.setCookie).split(';')[0]})).userId;
+ prep=(await world.store.port.createPreparation(owner,DTZ)).preparation;
+ parent=await asOwner(async c=>{const attempt=(await insertAttempt(c)).rows[0];const id=randomUUID();await c.query(`INSERT INTO submissions(id,attempt_id,owner_id,event_id,draft_revision,text,task_version,rubric_version,explanation_language)
+  VALUES($1,$2,$3,$4,1,'Synthetic saved parent text',$5,$6,'de')`,[id,attempt.id,owner,randomUUID(),pkg.internal.writingTasks[0].version,pkg.internal.writingTasks[0].rubricVersion]);return {attemptId:attempt.id,submissionId:id};});
  const pinned=(await world.store.port.startMockRun(owner,{preparationId:prep.id,formId:pkg.formId,formVersion:pkg.formVersion,releaseVersion:pkg.releaseVersion,eventId:randomUUID()})).run;
  await check('eligible new standalone attempts commit through the deferred SQL guard',async()=>{const result=await asOwner(c=>insertAttempt(c));assert.equal(result.rowCount,1);});
  await check('an unrelated invalid optional form does not hide a valid complete form',async()=>{
@@ -128,7 +139,7 @@ try {
    await Promise.allSettled([admission?.query('ROLLBACK'),rights?.query('ROLLBACK')]);if(pending)await Promise.allSettled([pending]);admission?.release();rights?.release();
   }
  });
- console.log('S6 core PostgreSQL: '+passed+' passed (historical 0034–0048 upgrade; synthetic fixture only)');
+ console.log('S6 core PostgreSQL: '+passed+' passed (historical 0034–0048 upgrade plus fully migrated continuation; synthetic fixtures only)');
 } finally {
  try{await db?.cleanup();}finally{try{if(mediaRoot&&path.dirname(mediaRoot)===tmpdir()&&path.basename(mediaRoot).startsWith('hatoove-s6-core-'))await rm(mediaRoot,{recursive:true,force:true});}finally{for(const[key,value]of Object.entries(saved))if(value===undefined)delete process.env[key];else process.env[key]=value;}}
 }

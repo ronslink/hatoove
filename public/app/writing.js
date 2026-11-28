@@ -1,7 +1,7 @@
 import { getLocale } from '../assets/i18n/core.js';
 import { pt, pl, bindPracticeText, updatePracticeLocale } from '../assets/i18n/practice-messages.js';
 import { contentReviewLabel, reviewHistoryNotice } from './review-labels.js';
-import { INSTRUCTIONS, instructionMarkup, translateInstructions } from '../assets/i18n/instructions.js';
+import { instructionFor, instructionMarkup, translateInstructions } from '../assets/i18n/instructions.js';
 
 /** Bound rubric metadata supplies criterion names and scales; never convert between exams. */
 export function writingCriterion(criterion, rubric) {
@@ -26,8 +26,20 @@ export function writingLabels(rubric, feedbackKind = null, locale = getLocale())
     notice: pt(telc ? 'rubricNoticeTelc' : 'rubricNotice', {}, locale),
   };
 }
+export function writingSituation(value,esc) {
+  const blocks=String(value||'').split(/\n\n+/);
+  return blocks.map(block=>{
+    const lines=block.split('\n');
+    if(lines.length>=3&&lines.every(l=>l.startsWith('|')&&l.endsWith('|'))&&/^\|[\s:|\-]+\|$/.test(lines[1])){
+      const cells=line=>line.slice(1,-1).split('|').map(s=>s.trim());
+      const rows=lines.filter((_,i)=>i!==1).map(cells);
+      if(rows.every(r=>r.length===rows[0].length))return '<div class="writing-table-scroll"><table class="writing-data-table"><thead><tr>'+rows[0].map(c=>'<th scope="col">'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+rows.slice(1).map(r=>'<tr>'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+    }
+    return '<p>'+esc(block).replaceAll('\n','<br>')+'</p>';
+  }).join('');
+}
 export function writingPrompt(task, esc, examLanguage = task?.exam_language || 'und') {
-  return `<div class="card-head"><h3 lang="${esc(examLanguage)}" dir="${examLanguage === 'ar' ? 'rtl' : 'ltr'}">${task.topic ? esc(task.topic) : pl('ui19')}</h3><span class="chip">${pl('ui01')}</span></div>${task.situation ? instructionMarkup({id:'writing.assigned',examLanguage,original:INSTRUCTIONS['writing.assigned'].examLanguage===examLanguage ? INSTRUCTIONS['writing.assigned'].original : ''}) : ''}<p lang="${esc(examLanguage)}" dir="${examLanguage === 'ar' ? 'rtl' : 'ltr'}">${esc(task.situation || '')}</p>${task.adressat ? `<p class="small muted">${pl('salutation')} <span lang="${esc(examLanguage)}" dir="${examLanguage === 'ar' ? 'rtl' : 'ltr'}">${esc(task.adressat)}</span></p>` : ''}<ul class="leitpunkte" lang="${esc(examLanguage)}" dir="${examLanguage === 'ar' ? 'rtl' : 'ltr'}">${(task.leitpunkte || []).map(p => `<li>${esc(p)}</li>`).join('')}</ul>`;
+  return `<div class="card-head"><h3 lang="${esc(examLanguage)}" dir="${examLanguage === 'ar' ? 'rtl' : 'ltr'}">${task.topic ? esc(task.topic) : pl('ui19')}</h3><span class="chip">${pl('ui01')}</span></div>${task.situation ? instructionMarkup({id:'writing.assigned',examLanguage,original:instructionFor('writing.assigned',examLanguage)?.original || ''}) : ''}<div lang="${esc(examLanguage)}" dir="${examLanguage === 'ar' ? 'rtl' : 'ltr'}">${writingSituation(task.situation,esc)}</div>${task.adressat ? `<p class="small muted">${pl('salutation')} <span lang="${esc(examLanguage)}" dir="${examLanguage === 'ar' ? 'rtl' : 'ltr'}">${esc(task.adressat)}</span></p>` : ''}<ul class="leitpunkte" lang="${esc(examLanguage)}" dir="${examLanguage === 'ar' ? 'rtl' : 'ltr'}">${(task.leitpunkte || []).map(p => `<li>${esc(p)}</li>`).join('')}</ul>`;
 }
 
 /** Owned writing lifecycle. Drafts and submitted feedback stay on the server. */

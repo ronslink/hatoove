@@ -1,5 +1,5 @@
 import { getLocale, initialLocale, setLocale, subscribeLocale, validLocale } from '../assets/i18n/core.js';
-import { INSTRUCTIONS, instructionMarkup, translateInstructions } from '../assets/i18n/instructions.js';
+import { instructionFor, instructionMarkup, translateInstructions } from '../assets/i18n/instructions.js';
 import { updatePracticeLocale, pt } from '../assets/i18n/practice-messages.js';
 import { s as uiText, messageMarkup, bindShellText, setShellHTML, updateShellMessages, createLocalePreference } from './locale-preference.js';
 import { initialPreparation, preparationChoices } from './preparation.js';
@@ -1174,8 +1174,9 @@ function renderObjectiveForm(set, host) {
       + "<p class=\"muted\"><span data-i18n=\"shell.m133\">Diese Aufgabe kann gerade nicht geöffnet werden. Bitte wählen Sie eine andere Aufgabe.</span></p></div>");
     return;
   }
-  const instruction = INSTRUCTIONS[form.interaction];
-  setShellHTML(host, (instruction ? instructionMarkup({ id: form.interaction, examLanguage: getExamLanguage() || 'und', original: instruction.examLanguage === getExamLanguage() ? instruction.original : '' }) : '') + (form.passages || []).map((passage) => '<section class="card"><div class="card-head"><h3>'
+  const instructionId=set.exam_id==='goethe-zertifikat-b2'&&set.family==='LV4'?'matching_opinions':form.interaction;
+  const instruction = instructionFor(instructionId,getExamLanguage());
+  setShellHTML(host, (instruction ? instructionMarkup({ id: instructionId, examLanguage: getExamLanguage() || 'und', original: instruction.examLanguage === getExamLanguage() ? instruction.original : '' }) : '') + (form.passages || []).map((passage) => '<section class="card"><div class="card-head"><h3>'
       + messageMarkup(passage.label) + '</h3></div>' + passage.lines.map((l) => '<p ' + examTextAttributes() + '>' + esc(l) + '</p>').join('') + '</section>').join('')
     + form.items.map((item, index) => {
       const options = item.options || form.options || [];

@@ -160,6 +160,7 @@ const CLI = path.resolve(fileURLToPath(new URL('../server/worker.mjs', import.me
 async function startWorker({ intervalMs = 100, startMs = 15000 } = {}) {
   const env = {
     ...process.env,
+    NODE_ENV: 'test', HATOVE_GRADER_MODE: 'stub',
     OWNAPI_PG_HOST: db.config.host,
     OWNAPI_PG_PORT: String(db.config.port),
     OWNAPI_PG_DATABASE: db.config.database,

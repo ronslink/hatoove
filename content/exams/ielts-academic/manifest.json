@@ -1,0 +1,1739 @@
+{
+  "schemaVersion": 1,
+  "exam": {
+    "id": "ielts-academic",
+    "title": "IELTS Academic",
+    "language": "en",
+    "levelModel": {
+      "type": "ielts-band-scale",
+      "min": 0,
+      "max": 9
+    }
+  },
+  "blueprint": {
+    "version": "v1",
+    "sections": [
+      {
+        "id": "HV",
+        "title": "Listening",
+        "timeGroup": "listening-32",
+        "parts": [
+          {
+            "family": "HV1",
+            "itemCount": 10,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 1
+            }
+          },
+          {
+            "family": "HV2",
+            "itemCount": 10,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 1
+            }
+          },
+          {
+            "family": "HV3",
+            "itemCount": 10,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 1
+            }
+          },
+          {
+            "family": "HV4",
+            "itemCount": 10,
+            "interaction": "fixed_audio",
+            "mediaRequired": true,
+            "playback": {
+              "practice": 1,
+              "mock": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "LV",
+        "title": "Academic Reading",
+        "timeGroup": "reading-60",
+        "parts": [
+          {
+            "family": "LV1",
+            "itemCount": 13,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV2",
+            "itemCount": 13,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          },
+          {
+            "family": "LV3",
+            "itemCount": 14,
+            "interaction": "single_choice",
+            "mediaRequired": false
+          }
+        ]
+      },
+      {
+        "id": "SA",
+        "title": "Academic Writing",
+        "timeGroup": "writing-60",
+        "parts": [
+          {
+            "family": "writing",
+            "itemCount": 2,
+            "interaction": "extended_writing",
+            "mediaRequired": false
+          }
+        ]
+      }
+    ],
+    "timeGroups": [
+      {
+        "id": "listening-32",
+        "seconds": 1920,
+        "sections": [
+          "HV"
+        ]
+      },
+      {
+        "id": "reading-60",
+        "seconds": 3600,
+        "sections": [
+          "LV"
+        ]
+      },
+      {
+        "id": "writing-60",
+        "seconds": 3600,
+        "sections": [
+          "SA"
+        ]
+      }
+    ],
+    "assessment": {
+      "policy": "objective-count-v1",
+      "correct": 1,
+      "incorrect": 0
+    },
+    "sources": [
+      {
+        "id": "listening",
+        "kind": "official-exam-specification",
+        "title": "IELTS Academic listening",
+        "url": "https://takeielts.britishcouncil.org/what-is-ielts/how-it-works/test-format/listening",
+        "retrieved": "2026-11-28",
+        "verification": "Format reference only. Original practice content. Computer-style listening allows a two-minute review; no paper answer-transfer period. Speaking excluded. No official overall band or calibration claim."
+      },
+      {
+        "id": "reading",
+        "kind": "official-exam-specification",
+        "title": "IELTS Academic reading",
+        "url": "https://ielts.org/take-a-test/test-types/ielts-academic-test/ielts-academic-format-reading",
+        "retrieved": "2026-11-28",
+        "verification": "Format reference only. Original practice content. Computer-style listening allows a two-minute review; no paper answer-transfer period. Speaking excluded. No official overall band or calibration claim."
+      },
+      {
+        "id": "writing",
+        "kind": "official-exam-specification",
+        "title": "IELTS Academic writing",
+        "url": "https://ielts.org/take-a-test/test-types/ielts-academic-test/ielts-academic-format-writing",
+        "retrieved": "2026-11-28",
+        "verification": "Format reference only. Original practice content. Computer-style listening allows a two-minute review; no paper answer-transfer period. Speaking excluded. No official overall band or calibration claim."
+      }
+    ]
+  },
+  "release": {
+    "version": "v1",
+    "state": "internal",
+    "resumeBlockedReleases": []
+  },
+  "forms": [
+    {
+      "id": "ielts-academic.complete.original01",
+      "version": "v1",
+      "title": "IELTS Academic: Listening, Reading and Writing practice",
+      "scope": "complete_supported_written",
+      "sections": [
+        "HV",
+        "LV",
+        "SA"
+      ],
+      "mode": "timed",
+      "timeLimitSeconds": 9120,
+      "attemptMode": "mock",
+      "timingPolicy": "ordered-fixed-v1",
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "ielts-academic.hv1.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "ielts-academic.hv2.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "ielts-academic.hv3.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "ielts-academic.hv4.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "ielts-academic.lv1.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 13
+        },
+        {
+          "setId": "ielts-academic.lv2.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 13
+        },
+        {
+          "setId": "ielts-academic.lv3.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 14
+        }
+      ],
+      "writingTasks": [
+        {
+          "id": "task1",
+          "section": "SA",
+          "taskId": "ielts-academic.writing.original01.task1",
+          "taskVersion": "v1"
+        },
+        {
+          "id": "task2",
+          "section": "SA",
+          "taskId": "ielts-academic.writing.original01.task2",
+          "taskVersion": "v1"
+        }
+      ]
+    },
+    {
+      "id": "ielts-academic.reading.original01",
+      "version": "v1",
+      "title": "Academic Reading: three passages",
+      "scope": "section",
+      "sections": [
+        "LV"
+      ],
+      "mode": "timed",
+      "timeLimitSeconds": 3600,
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "ielts-academic.lv1.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 13
+        },
+        {
+          "setId": "ielts-academic.lv2.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 13
+        },
+        {
+          "setId": "ielts-academic.lv3.original01",
+          "version": "v1",
+          "interaction": "single_choice",
+          "itemCount": 14
+        }
+      ]
+    },
+    {
+      "id": "ielts-academic.listening.original01",
+      "version": "v1",
+      "title": "Listening: four parts",
+      "scope": "section",
+      "sections": [
+        "HV"
+      ],
+      "mode": "timed",
+      "timeLimitSeconds": 1920,
+      "attemptMode": "mock",
+      "feedback": "finalise",
+      "members": [
+        {
+          "setId": "ielts-academic.hv1.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "ielts-academic.hv2.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "ielts-academic.hv3.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        },
+        {
+          "setId": "ielts-academic.hv4.original01",
+          "version": "v1",
+          "interaction": "fixed_audio",
+          "itemCount": 10
+        }
+      ]
+    },
+    {
+      "id": "ielts-academic.writing.original01",
+      "version": "v1",
+      "title": "Academic Writing: report and essay",
+      "scope": "section",
+      "sections": [
+        "SA"
+      ],
+      "mode": "timed",
+      "timeLimitSeconds": 3600,
+      "feedback": "finalise",
+      "members": [],
+      "writingTasks": [
+        {
+          "id": "task1",
+          "section": "SA",
+          "taskId": "ielts-academic.writing.original01.task1",
+          "taskVersion": "v1"
+        },
+        {
+          "id": "task2",
+          "section": "SA",
+          "taskId": "ielts-academic.writing.original01.task2",
+          "taskVersion": "v1"
+        }
+      ]
+    }
+  ],
+  "sets": [
+    {
+      "version": "v1",
+      "examId": "ielts-academic",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "setId": "ielts-academic.hv1.original01",
+      "family": "HV1",
+      "section": "HV",
+      "part": 1,
+      "title": "Joining a community repair workshop",
+      "interaction": "fixed_audio",
+      "itemCount": 10,
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv1-original01",
+            "mediaId": "ielts-academic.hv1.original01.audio",
+            "mediaVersion": "v1",
+            "label": "Part 1: Joining a community repair workshop",
+            "questions": [
+              {
+                "n": 1,
+                "question": "What is included in the introductory course?",
+                "options": {
+                  "a": "Rewiring electrical appliances",
+                  "b": "Deciding when professional help is needed",
+                  "c": "Advanced metalworking"
+                }
+              },
+              {
+                "n": 2,
+                "question": "When does the next introductory group meet?",
+                "options": {
+                  "a": "Saturday mornings",
+                  "b": "Thursday afternoons",
+                  "c": "Wednesday evenings"
+                }
+              },
+              {
+                "n": 3,
+                "question": "Which entrance should participants use?",
+                "options": {
+                  "a": "The side entrance beside the bicycle racks",
+                  "b": "The main café entrance",
+                  "c": "The entrance beside the river"
+                }
+              },
+              {
+                "n": 4,
+                "question": "How much do the four sessions cost without the optional kit?",
+                "options": {
+                  "a": "Forty pounds",
+                  "b": "Sixty pounds",
+                  "c": "Eighty pounds"
+                }
+              },
+              {
+                "n": 5,
+                "question": "What should the customer bring to the first session?",
+                "options": {
+                  "a": "The chair",
+                  "b": "A photograph of the damage",
+                  "c": "A new set of tools"
+                }
+              },
+              {
+                "n": 6,
+                "question": "Can the customer's daughter attend?",
+                "options": {
+                  "a": "No, everyone must be sixteen.",
+                  "b": "Yes, if the customer attends with her.",
+                  "c": "Yes, without a separate booking."
+                }
+              },
+              {
+                "n": 7,
+                "question": "What can a participant do after missing one session?",
+                "options": {
+                  "a": "Claim an individual refund",
+                  "b": "Attend an equivalent later session if space allows",
+                  "c": "Request a private lesson at no cost"
+                }
+              },
+              {
+                "n": 8,
+                "question": "When is the reservation confirmed?",
+                "options": {
+                  "a": "When the online form is opened",
+                  "b": "When payment arrives",
+                  "c": "When card details are given by phone"
+                }
+              },
+              {
+                "n": 9,
+                "question": "What must participants provide themselves?",
+                "options": {
+                  "a": "Protective glasses",
+                  "b": "An apron",
+                  "c": "Closed shoes"
+                }
+              },
+              {
+                "n": 10,
+                "question": "Where should questions about the chair be sent?",
+                "options": {
+                  "a": "To the workshop email address",
+                  "b": "To the café telephone number",
+                  "c": "To the bicycle shop"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "answers": {
+        "1": "b",
+        "2": "c",
+        "3": "a",
+        "4": "a",
+        "5": "b",
+        "6": "b",
+        "7": "b",
+        "8": "b",
+        "9": "c",
+        "10": "a"
+      },
+      "explanations": {
+        "1": "The receptionist explicitly includes recognising when a qualified professional is needed.",
+        "2": "Wednesday evenings replace the previous Saturday arrangement; Thursday is the advanced group.",
+        "3": "The temporary venue's side entrance faces the bicycle racks.",
+        "4": "Forty pounds is the course-only price; sixty includes an optional kit.",
+        "5": "The tutor wants a photograph before larger objects are brought in.",
+        "6": "Participants under sixteen need a responsible adult; both need reserved places.",
+        "7": "The receptionist offers the equivalent session with the next group, subject to space.",
+        "8": "A separate confirmation follows receipt of payment.",
+        "9": "The centre supplies glasses and aprons; closed shoes are essential personal clothing.",
+        "10": "Nina checks workshop emails and forwards technical questions to the tutor."
+      },
+      "source": "Original Hatoove IELTS Academic listening scripts and items, AI-assisted authorship 2026-11-28; human review pending. Google Cloud TTS fixed recordings, distinct speaker voices. No official exam text copied."
+    },
+    {
+      "version": "v1",
+      "examId": "ielts-academic",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "setId": "ielts-academic.hv2.original01",
+      "family": "HV2",
+      "section": "HV",
+      "part": 2,
+      "title": "A visitor briefing at the restored reservoir",
+      "interaction": "fixed_audio",
+      "itemCount": 10,
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv2-original01",
+            "mediaId": "ielts-academic.hv2.original01.audio",
+            "mediaVersion": "v1",
+            "label": "Part 2: A visitor briefing at the restored reservoir",
+            "questions": [
+              {
+                "n": 11,
+                "question": "Why was the reservoir originally constructed?",
+                "options": {
+                  "a": "To supply the textile mills",
+                  "b": "To provide drinking water",
+                  "c": "To create a wildlife reserve"
+                }
+              },
+              {
+                "n": 12,
+                "question": "What approach did the restoration take?",
+                "options": {
+                  "a": "Clearing every tree",
+                  "b": "Reopening selected channels",
+                  "c": "Draining the entire reservoir"
+                }
+              },
+              {
+                "n": 13,
+                "question": "What is displayed beside the visitor-centre entrance?",
+                "options": {
+                  "a": "The original pump in working order",
+                  "b": "A model of a bird hide",
+                  "c": "A working replica of the machinery"
+                }
+              },
+              {
+                "n": 14,
+                "question": "Which route is recommended today for less steady walkers?",
+                "options": {
+                  "a": "The eastern bank only",
+                  "b": "The shorter route",
+                  "c": "The full ninety-minute circuit"
+                }
+              },
+              {
+                "n": 15,
+                "question": "Why is early morning good for the northern hide?",
+                "options": {
+                  "a": "It is the only time reservations are accepted.",
+                  "b": "Later sunlight makes observation harder.",
+                  "c": "The ground-level windows close at noon."
+                }
+              },
+              {
+                "n": 16,
+                "question": "What may children keep after completing the trail?",
+                "options": {
+                  "a": "The pencils",
+                  "b": "Natural objects they collect",
+                  "c": "The trail sheet"
+                }
+              },
+              {
+                "n": 17,
+                "question": "Where are ordinary pet dogs allowed?",
+                "options": {
+                  "a": "In the reed beds without a lead",
+                  "b": "On the western path on a short lead",
+                  "c": "On every route on a long lead"
+                }
+              },
+              {
+                "n": 18,
+                "question": "What should visitors do with food waste?",
+                "options": {
+                  "a": "Take it home",
+                  "b": "Put it in the bottle-recycling bins",
+                  "c": "Leave it beside the picnic tables"
+                }
+              },
+              {
+                "n": 19,
+                "question": "What is necessary before flying a drone?",
+                "options": {
+                  "a": "A normal admission ticket",
+                  "b": "Written permission in advance",
+                  "c": "A personal photography pass bought at the gate"
+                }
+              },
+              {
+                "n": 20,
+                "question": "What will the next volunteer morning focus on?",
+                "options": {
+                  "a": "Planting trees",
+                  "b": "Repairing the original pump",
+                  "c": "Checking signs and cleaning viewing windows"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "answers": {
+        "11": "a",
+        "12": "b",
+        "13": "c",
+        "14": "b",
+        "15": "b",
+        "16": "c",
+        "17": "b",
+        "18": "a",
+        "19": "b",
+        "20": "c"
+      },
+      "explanations": {
+        "11": "The guide distinguishes industrial supply from the town's spring-fed drinking water.",
+        "12": "The project reopened selected channels and repaired a damaged bank.",
+        "13": "The original pump is unsafe and stored; the displayed machine is a replica.",
+        "14": "Rain has made the eastern bank slippery, so the shorter route is recommended.",
+        "15": "Reflections later in the day make birds harder to observe.",
+        "16": "Pencils must be returned and natural objects left in place; the sheet may be kept.",
+        "17": "The western path permits dogs on short leads; reed beds exclude ordinary pets.",
+        "18": "Food waste must be taken home to avoid attracting animals.",
+        "19": "The guide explicitly says an admission ticket does not provide drone permission.",
+        "20": "The programme has changed from tree planting to signs and windows."
+      },
+      "source": "Original Hatoove IELTS Academic listening scripts and items, AI-assisted authorship 2026-11-28; human review pending. Google Cloud TTS fixed recordings, distinct speaker voices. No official exam text copied."
+    },
+    {
+      "version": "v1",
+      "examId": "ielts-academic",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "setId": "ielts-academic.hv3.original01",
+      "family": "HV3",
+      "section": "HV",
+      "part": 3,
+      "title": "Planning a study of reusable containers",
+      "interaction": "fixed_audio",
+      "itemCount": 10,
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv3-original01",
+            "mediaId": "ielts-academic.hv3.original01.audio",
+            "mediaVersion": "v1",
+            "label": "Part 3: Planning a study of reusable containers",
+            "questions": [
+              {
+                "n": 21,
+                "question": "Why did the students change their original topic?",
+                "options": {
+                  "a": "Another group was studying a similar topic.",
+                  "b": "The café had stopped recycling.",
+                  "c": "Their tutor prohibited environmental projects."
+                }
+              },
+              {
+                "n": 22,
+                "question": "What is the revised project's main focus?",
+                "options": {
+                  "a": "How containers are manufactured",
+                  "b": "Reasons for late container returns",
+                  "c": "Whether lunch prices should rise"
+                }
+              },
+              {
+                "n": 23,
+                "question": "How will participants be recruited?",
+                "options": {
+                  "a": "By taking names from the café's borrowing list",
+                  "b": "Through a voluntary invitation",
+                  "c": "By requiring every customer to take part"
+                }
+              },
+              {
+                "n": 24,
+                "question": "Why include prompt returners?",
+                "options": {
+                  "a": "To provide a comparison group",
+                  "b": "To make the café's policy look successful",
+                  "c": "To replace all late returners"
+                }
+              },
+              {
+                "n": 25,
+                "question": "What is wrong with Leo's first interview questions?",
+                "options": {
+                  "a": "They contain too many technical terms.",
+                  "b": "They assume the cause of the behaviour.",
+                  "c": "They ask about events too far in the past."
+                }
+              },
+              {
+                "n": 26,
+                "question": "What observation schedule does the tutor recommend?",
+                "options": {
+                  "a": "Only Monday lunchtime",
+                  "b": "Several periods including quieter times",
+                  "c": "Only the final hour before closing"
+                }
+              },
+              {
+                "n": 27,
+                "question": "How should the students begin coding interviews?",
+                "options": {
+                  "a": "Each code some of the same interviews independently.",
+                  "b": "Assign every interview to only one category.",
+                  "c": "Ask the café manager to choose all categories."
+                }
+              },
+              {
+                "n": 28,
+                "question": "When should they recommend a larger deposit?",
+                "options": {
+                  "a": "Before interviewing participants",
+                  "b": "Only if the evidence supports it",
+                  "c": "Whenever a customer returns a container late"
+                }
+              },
+              {
+                "n": 29,
+                "question": "What distinction must the findings preserve?",
+                "options": {
+                  "a": "Reports of experience versus direct observations",
+                  "b": "First-year students versus all staff",
+                  "c": "Monday interviews versus Tuesday interviews only"
+                }
+              },
+              {
+                "n": 30,
+                "question": "What should appear in the final slides?",
+                "options": {
+                  "a": "All complete transcripts",
+                  "b": "Participants' names and borrowing records",
+                  "c": "Brief anonymised extracts"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "answers": {
+        "21": "a",
+        "22": "b",
+        "23": "b",
+        "24": "a",
+        "25": "b",
+        "26": "b",
+        "27": "a",
+        "28": "b",
+        "29": "a",
+        "30": "c"
+      },
+      "explanations": {
+        "21": "Maya says another group is already investigating recycling symbols.",
+        "22": "Leo identifies the question as why people return reusable containers late.",
+        "23": "The tutor rejects using customer details and supports voluntary direct contact.",
+        "24": "The tutor explicitly requests a comparison group.",
+        "25": "Forgetting and irresponsibility are assumed before participants describe their experiences.",
+        "26": "An afternoon and evening should supplement the busy lunchtime period.",
+        "27": "The tutor recommends independent coding of shared examples followed by comparison.",
+        "28": "The tutor warns them not to defend their initial idea.",
+        "29": "The tutor distinguishes a reported machine problem from a measured failure rate.",
+        "30": "The tutor requests short anonymised extracts and approved storage for full material."
+      },
+      "source": "Original Hatoove IELTS Academic listening scripts and items, AI-assisted authorship 2026-11-28; human review pending. Google Cloud TTS fixed recordings, distinct speaker voices. No official exam text copied."
+    },
+    {
+      "version": "v1",
+      "examId": "ielts-academic",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "setId": "ielts-academic.hv4.original01",
+      "family": "HV4",
+      "section": "HV",
+      "part": 4,
+      "title": "Designing products for repair",
+      "interaction": "fixed_audio",
+      "itemCount": 10,
+      "payload": {
+        "recordings": [
+          {
+            "id": "hv4-original01",
+            "mediaId": "ielts-academic.hv4.original01.audio",
+            "mediaVersion": "v1",
+            "label": "Part 4: Designing products for repair",
+            "questions": [
+              {
+                "n": 31,
+                "question": "What question does a focus on recycling alone overlook?",
+                "options": {
+                  "a": "Whether a product could stay in use through repair",
+                  "b": "Whether raw materials have colours",
+                  "c": "Whether factories can sell more products"
+                }
+              },
+              {
+                "n": 32,
+                "question": "What is a possible disadvantage of a sealed case?",
+                "options": {
+                  "a": "It always weighs more than a screwed case.",
+                  "b": "Opening it can damage working parts.",
+                  "c": "It makes water resistance impossible."
+                }
+              },
+              {
+                "n": 33,
+                "question": "Why may repair fail even after a broken switch is identified?",
+                "options": {
+                  "a": "The switch is visible.",
+                  "b": "A suitable replacement part is unavailable.",
+                  "c": "The case uses common screws."
+                }
+              },
+              {
+                "n": 34,
+                "question": "What should useful repair instructions include?",
+                "options": {
+                  "a": "Only a promise that all owners can repair the product",
+                  "b": "The procedure and its limits",
+                  "c": "A requirement to replace the whole product"
+                }
+              },
+              {
+                "n": 35,
+                "question": "Why is the number of removable screws an incomplete measure?",
+                "options": {
+                  "a": "Diagnosis time also affects repair cost.",
+                  "b": "Screws are never used in modern products.",
+                  "c": "Opening a case is always the most expensive stage."
+                }
+              },
+              {
+                "n": 36,
+                "question": "What disadvantage can modular design introduce?",
+                "options": {
+                  "a": "Additional connectors can create failure points.",
+                  "b": "It eliminates all spare parts.",
+                  "c": "It prevents replacement of any component."
+                }
+              },
+              {
+                "n": 37,
+                "question": "What should a software-support commitment specify?",
+                "options": {
+                  "a": "The colour of the device",
+                  "b": "When the support period begins",
+                  "c": "How many owners the device has had"
+                }
+              },
+              {
+                "n": 38,
+                "question": "Why must archived instructions identify an exact product version?",
+                "options": {
+                  "a": "Similar-looking models may have different internal arrangements.",
+                  "b": "All old instructions are automatically unsafe.",
+                  "c": "Owners are forbidden to keep paper manuals."
+                }
+              },
+              {
+                "n": 39,
+                "question": "What makes a repairability test easier to interpret?",
+                "options": {
+                  "a": "Keeping its criteria confidential",
+                  "b": "Publishing its assumptions and criteria",
+                  "c": "Testing only at the manufacturing plant"
+                }
+              },
+              {
+                "n": 40,
+                "question": "What is the lecturer's final position?",
+                "options": {
+                  "a": "Every product should be repaired indefinitely.",
+                  "b": "Replacement should remain a considered option.",
+                  "c": "Energy consumption should never affect replacement decisions."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "answers": {
+        "31": "a",
+        "32": "b",
+        "33": "b",
+        "34": "b",
+        "35": "a",
+        "36": "a",
+        "37": "b",
+        "38": "a",
+        "39": "b",
+        "40": "b"
+      },
+      "explanations": {
+        "31": "The introduction distinguishes recycling material from extending the object's useful life.",
+        "32": "The lecturer says cutting or heating can damage parts that were still working.",
+        "33": "The example concerns an unusual switch no longer supplied by its manufacturer.",
+        "34": "Instructions should explain procedures, safety and when specialist knowledge is needed.",
+        "35": "A product may be easy to open but costly to diagnose.",
+        "36": "The lecturer lists weight, space and extra failure points as possible connector costs.",
+        "37": "Support measured from launch differs from support measured from purchase.",
+        "38": "Internal connections and safety procedures can differ between similar models.",
+        "39": "Visible criteria and assumptions help owners judge a result's relevance.",
+        "40": "The conclusion argues for a real choice, accounting for safety, energy and manufacturing impacts."
+      },
+      "source": "Original Hatoove IELTS Academic listening scripts and items, AI-assisted authorship 2026-11-28; human review pending. Google Cloud TTS fixed recordings, distinct speaker voices. No official exam text copied."
+    },
+    {
+      "version": "v1",
+      "examId": "ielts-academic",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "setId": "ielts-academic.lv1.original01",
+      "family": "LV1",
+      "section": "LV",
+      "part": 1,
+      "title": "The second life of a public library",
+      "interaction": "single_choice",
+      "itemCount": 13,
+      "payload": {
+        "text": "A\nFor much of the twentieth century, the Eastborough library measured success by counting the books that crossed its counter. When borrowing declined, the obvious response appeared to be a smaller building. Instead, its director asked staff to record what visitors actually did. Many used the reference desks without borrowing anything; others brought documents they could not understand or met classmates before an examination. None appeared in the loan statistics. The resulting account did not prove that books had become unimportant. It showed that a measure designed around one service could conceal several others.\n\nB\nThe first redesign proposal placed a café beside the entrance and removed most of the reference shelves. At public meetings, however, residents challenged the assumption that every quiet corner was an unused corner. A retired engineer explained that she needed somewhere to study without buying a drink. Parents wanted their children to encounter books even when visiting for another reason. The final plan retained a substantial printed collection and created three clearly separated areas: a conversational ground floor, a silent upstairs room and a workshop behind a soundproof door. The café proposal was dropped.\n\nC\nStaff also introduced a lending collection of practical equipment. A drill, a sewing machine or a thermal camera might be useful for one project yet remain idle for years afterwards. The attraction was not merely the price of borrowing. Before taking an unfamiliar tool home, a user could attend a demonstration and ask basic questions without embarrassment. Volunteers with relevant experience supported these sessions, but librarians remained responsible for bookings and safety information. Equipment with missing parts was withdrawn until it could be checked. Popularity alone was never sufficient reason to keep an unsafe item circulating.\n\nD\nThis expansion produced a problem that its supporters had underestimated. Unlike a novel, a sewing machine cannot simply be returned through a slot after closing time. Each return required inspection, and demonstrations needed preparation. Staff initially absorbed the work alongside their existing duties, causing delays elsewhere. The solution was a dedicated maintenance budget and a booking system that left time between loans. The library also limited the equipment collection rather than accepting every donation. A generous offer could create a long-term obligation; storage, replacement parts and staff attention all had costs, even when the object itself was free.\n\nE\nTo assess the project, the library compared use before and after the redesign and interviewed visitors who had stopped attending. Attendance rose, but the team avoided claiming that the building changes had caused the whole increase. A nearby college had expanded during the same period, and a bus route now stopped outside. Interviews nevertheless identified improvements that the figures could not explain: several visitors said the signs helped them find quieter areas, while workshop participants described returning specifically to practise a skill. The evaluation combined different kinds of evidence because no single number captured both access and experience.\n\nF\nDigital assistance became another significant service. A person applying for a job might know how to use a phone but have difficulty uploading a document to an unfamiliar website. Staff did not complete applications on visitors' behalf or keep their passwords. They explained the process, then allowed the applicant to enter private information alone. This boundary sometimes made a session slower. It also protected the distinction between helping someone learn and taking control of their affairs. Printed guides were available so that users could repeat the steps later without relying on the same member of staff.\n\nG\nNot everyone welcomed the changes. Some regular readers complained about noise, and a few volunteers expected the workshop to function like a private club. The director responded by publishing room-use rules and collecting complaints at different times of day. Most noise reports concerned the staircase rather than the workshop, so adding a door at the stairwell proved more useful than shortening workshop hours. Volunteers were reminded that places had to remain available to beginners. The intention was not to eliminate disagreement but to make it possible to distinguish a design problem from a conflict over who belonged.\n\nH\nEastborough's experience suggests a broader question for public institutions. When established activities decline, should a service defend its original form or reconsider the need that form once met? The library's answer was selective rather than revolutionary. It kept books, professional staff and spaces for independent thought, while admitting that learning could involve repairing an object or navigating an online form. Other towns might make different choices because their buildings, budgets and communities differ. Copying the visible additions without funding the less visible work of maintenance and guidance would miss the most important lesson.",
+        "questions": [
+          {
+            "n": 1,
+            "question": "What did the initial observation exercise reveal?",
+            "options": {
+              "a": "Loan figures overlooked some uses of the library.",
+              "b": "Visitors preferred digital books to printed ones.",
+              "c": "Most reference enquiries could be automated.",
+              "d": "The building was too large for its users."
+            }
+          },
+          {
+            "n": 2,
+            "question": "Why was the café removed from the final plan?",
+            "options": {
+              "a": "Staff could not find a suitable supplier.",
+              "b": "Residents wanted access to quiet space without a purchase.",
+              "c": "The entrance lacked enough natural light.",
+              "d": "The library had already opened a café upstairs."
+            }
+          },
+          {
+            "n": 3,
+            "question": "What advantage did demonstrations offer?",
+            "options": {
+              "a": "They removed the need for safety checks.",
+              "b": "They guaranteed that every project would succeed.",
+              "c": "They let borrowers ask questions before using equipment.",
+              "d": "They qualified volunteers to replace librarians."
+            }
+          },
+          {
+            "n": 4,
+            "question": "What was the main lesson concerning donated equipment?",
+            "options": {
+              "a": "Older equipment was always more reliable.",
+              "b": "Donations should be accepted only from companies.",
+              "c": "Free items could still create ongoing costs.",
+              "d": "Equipment loans required no extra storage."
+            }
+          },
+          {
+            "n": 5,
+            "question": "The redesign removed every printed reference book. Choose TRUE, FALSE or NOT GIVEN.",
+            "options": {
+              "a": "TRUE",
+              "b": "FALSE",
+              "c": "NOT GIVEN"
+            }
+          },
+          {
+            "n": 6,
+            "question": "The library employed more volunteers than librarians. Choose TRUE, FALSE or NOT GIVEN.",
+            "options": {
+              "a": "TRUE",
+              "b": "FALSE",
+              "c": "NOT GIVEN"
+            }
+          },
+          {
+            "n": 7,
+            "question": "The evaluation considered explanations for higher attendance other than the redesign. Choose TRUE, FALSE or NOT GIVEN.",
+            "options": {
+              "a": "TRUE",
+              "b": "FALSE",
+              "c": "NOT GIVEN"
+            }
+          },
+          {
+            "n": 8,
+            "question": "Staff stored passwords so that applicants could return later. Choose TRUE, FALSE or NOT GIVEN.",
+            "options": {
+              "a": "TRUE",
+              "b": "FALSE",
+              "c": "NOT GIVEN"
+            }
+          },
+          {
+            "n": 9,
+            "question": "Which paragraph describes a repair that addressed the actual source of complaints?",
+            "options": {
+              "a": "B",
+              "b": "D",
+              "c": "F",
+              "d": "G"
+            }
+          },
+          {
+            "n": 10,
+            "question": "Which paragraph explains why a smaller equipment collection was chosen?",
+            "options": {
+              "a": "A",
+              "b": "D",
+              "c": "E",
+              "d": "H"
+            }
+          },
+          {
+            "n": 11,
+            "question": "Which paragraph describes help that preserves a user's control over private information?",
+            "options": {
+              "a": "C",
+              "b": "E",
+              "c": "F",
+              "d": "H"
+            }
+          },
+          {
+            "n": 12,
+            "question": "Which paragraph warns other communities against copying only visible changes?",
+            "options": {
+              "a": "A",
+              "b": "C",
+              "c": "G",
+              "d": "H"
+            }
+          },
+          {
+            "n": 13,
+            "question": "What is the writer's overall view of the project?",
+            "options": {
+              "a": "It demonstrates that libraries should abandon books.",
+              "b": "It offers a selective adaptation whose support costs matter.",
+              "c": "It proves that all libraries need identical workshops.",
+              "d": "It shows that attendance is the only useful measure."
+            }
+          }
+        ]
+      },
+      "answers": {
+        "1": "a",
+        "2": "b",
+        "3": "c",
+        "4": "c",
+        "5": "b",
+        "6": "c",
+        "7": "a",
+        "8": "b",
+        "9": "d",
+        "10": "b",
+        "11": "c",
+        "12": "d",
+        "13": "b"
+      },
+      "explanations": {
+        "1": "Paragraph A describes visitors whose activities never appeared in borrowing statistics.",
+        "2": "Paragraph B reports residents' objections to having to buy a drink and states that the café proposal was dropped.",
+        "3": "Paragraph C connects demonstrations with learning how to use an unfamiliar tool and asking basic questions.",
+        "4": "Paragraph D distinguishes the purchase price from maintenance, storage and staffing obligations.",
+        "5": "Paragraph B explicitly says that a substantial printed collection was retained.",
+        "6": "Paragraph C describes their roles but gives no staffing totals.",
+        "7": "Paragraph E names a college expansion and a changed bus route as other possible influences.",
+        "8": "Paragraph F explicitly says staff did not keep visitors' passwords.",
+        "9": "Paragraph G identifies noise at the staircase and the addition of a stairwell door.",
+        "10": "Paragraph D describes the workload and the decision to limit equipment donations.",
+        "11": "Paragraph F separates explanation from entering personal information.",
+        "12": "Paragraph H stresses the less visible maintenance and guidance costs.",
+        "13": "The conclusion combines retaining core library functions with carefully supported new services."
+      },
+      "source": "Original Hatoove practice passages and questions authored with AI assistance on 2026-11-28. Named places and research programmes are fictional teaching scenarios; no official IELTS passages or items copied. Human content review pending."
+    },
+    {
+      "version": "v1",
+      "examId": "ielts-academic",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "setId": "ielts-academic.lv2.original01",
+      "family": "LV2",
+      "section": "LV",
+      "part": 2,
+      "title": "Listening to a changing landscape",
+      "interaction": "single_choice",
+      "itemCount": 13,
+      "payload": {
+        "text": "A\nA landscape can be documented without a camera. A recording made before sunrise may contain insects, moving water, passing vehicles and the calls of birds hidden in vegetation. Researchers interested in environmental change increasingly use such recordings to supplement field observations. The equipment can remain in place for weeks, collecting sounds when no observer is present. This does not turn a microphone into a complete census of life. It provides a different sample: evidence of activity that produces sound, within a particular distance and under particular recording conditions.\n\nB\nIn an imaginary research programme at Willow Marsh, the team placed identical recorders at twelve sites, some beside restored channels and others in areas that had not been altered. Every device recorded for five minutes at the start of each hour. The repeated schedule mattered because a recording at noon could not fairly be compared with one at dawn. The researchers also noted rainfall and wind. A silent recording during a storm might reflect interference rather than an absence of animals. Standardising the equipment removed one possible source of variation, but it did not make the surroundings identical.\n\nC\nThe first stage of analysis was deliberately simple. Software divided each recording into frequency ranges and measured how much acoustic energy occurred in each range. A colourful chart could then show changes over time. Such charts were useful for finding unusual periods, but the team resisted describing them as direct maps of biodiversity. Several species can occupy similar frequency ranges, while a single loud species can dominate a recording. An electrical pump may produce a regular band that looks striking on a chart without indicating any wildlife at all. Listening to selected samples therefore remained essential.\n\nD\nRecognising particular species introduced another difficulty. Automated classifiers are trained on labelled examples, and those examples may not resemble the conditions in which the system is later used. A bird recorded alone near a microphone is easier to identify than the same bird calling behind reeds while rain falls. At Willow Marsh, the team tested the software against recordings that local specialists had labelled independently. They reported both missed calls and false identifications. Publishing only the percentage of correct labels would have hidden the fact that mistakes were concentrated among quieter species and the noisiest recording periods.\n\nE\nThere was also a less obvious question about the choice of sites. Recorders attached to convenient fence posts were easy to retrieve, but those posts followed the main walking path. A survey based only on them would describe the edge of the marsh rather than its interior. Moving some devices required permission from landowners and longer visits by field staff. The additional effort made the sample less convenient but more informative. It also revealed why a large quantity of automatically collected data is not necessarily representative: the decision about where to place the instrument occurs before the first file is created.\n\nF\nCommunity participation helped with interpretation. Residents remembered when a nearby factory had changed its working hours, explaining why evening mechanical noise disappeared from several recordings. Volunteers also identified a recurring sound that the software had classified as an animal: a loose metal sign moving in the wind. Their contributions were logged with dates and reasons so that another analyst could examine them. The team did not accept every confident identification without checking it. Local knowledge and formal procedures were treated as complementary, with each capable of correcting an error in the other.\n\nG\nThe programme raised questions about privacy because microphones sometimes captured human conversation on the public path. The researchers shortened the retention period for raw recordings and restricted access to files containing intelligible speech. Public demonstrations used selected clips from which conversations had been removed. These safeguards reduced what could be shared, but the team considered them part of the research design rather than an inconvenience to be solved afterwards. Permission to study a wetland did not automatically imply permission to publish everything audible there. Signs near the recorders explained their purpose and provided a contact address.\n\nH\nAfter two seasons, calls from several wetland birds appeared more frequently near the restored channels. The finding was encouraging, but it was not equivalent to proving that the total population had grown. Birds might have moved from nearby areas, become more vocal or approached the microphones more closely. The team therefore combined the acoustic record with visual surveys and water-level measurements. Its strongest conclusion concerned the value of repeated, comparable observations, not the superiority of one instrument. A microphone can extend human attention across time, provided that researchers remain equally attentive to the limits of what it hears.",
+        "questions": [
+          {
+            "n": 14,
+            "question": "Why can recorders be useful alongside field observers?",
+            "options": {
+              "a": "They detect every animal in a habitat.",
+              "b": "They collect evidence when observers are absent.",
+              "c": "They require no decisions about sampling.",
+              "d": "They replace all visual surveys."
+            }
+          },
+          {
+            "n": 15,
+            "question": "Why did every recorder follow the same hourly schedule?",
+            "options": {
+              "a": "To reduce differences caused by time of day.",
+              "b": "To avoid recording any human speech.",
+              "c": "To increase the number of restored channels.",
+              "d": "To eliminate interference from wind."
+            }
+          },
+          {
+            "n": 16,
+            "question": "What does the pump example illustrate?",
+            "options": {
+              "a": "Mechanical sounds always occupy low frequencies.",
+              "b": "Colourful charts can include non-biological patterns.",
+              "c": "Pumps attract the greatest variety of birds.",
+              "d": "All regular sounds should be deleted."
+            }
+          },
+          {
+            "n": 17,
+            "question": "What weakness can arise when a classifier is used in a new location?",
+            "options": {
+              "a": "It cannot accept recordings from identical devices.",
+              "b": "Its training examples may not match field conditions.",
+              "c": "It always labels rain as a quiet bird.",
+              "d": "It stops measuring acoustic energy."
+            }
+          },
+          {
+            "n": 18,
+            "question": "All twelve sites were beside restored channels. Choose TRUE, FALSE or NOT GIVEN.",
+            "options": {
+              "a": "TRUE",
+              "b": "FALSE",
+              "c": "NOT GIVEN"
+            }
+          },
+          {
+            "n": 19,
+            "question": "The programme continued for two seasons. Choose TRUE, FALSE or NOT GIVEN.",
+            "options": {
+              "a": "TRUE",
+              "b": "FALSE",
+              "c": "NOT GIVEN"
+            }
+          },
+          {
+            "n": 20,
+            "question": "The recorders were manufactured in the same country. Choose TRUE, FALSE or NOT GIVEN.",
+            "options": {
+              "a": "TRUE",
+              "b": "FALSE",
+              "c": "NOT GIVEN"
+            }
+          },
+          {
+            "n": 21,
+            "question": "Every identification proposed by a resident was accepted immediately. Choose TRUE, FALSE or NOT GIVEN.",
+            "options": {
+              "a": "TRUE",
+              "b": "FALSE",
+              "c": "NOT GIVEN"
+            }
+          },
+          {
+            "n": 22,
+            "question": "Which paragraph explains how convenient placement can bias a sample?",
+            "options": {
+              "a": "B",
+              "b": "D",
+              "c": "E",
+              "d": "G"
+            }
+          },
+          {
+            "n": 23,
+            "question": "Which paragraph describes reducing access to sensitive source material?",
+            "options": {
+              "a": "C",
+              "b": "E",
+              "c": "F",
+              "d": "G"
+            }
+          },
+          {
+            "n": 24,
+            "question": "Which paragraph gives an example of local knowledge explaining a change in noise?",
+            "options": {
+              "a": "B",
+              "b": "D",
+              "c": "F",
+              "d": "H"
+            }
+          },
+          {
+            "n": 25,
+            "question": "Which conclusion is supported by the final paragraph?",
+            "options": {
+              "a": "More recorded calls necessarily mean more individual birds.",
+              "b": "Acoustic evidence is most useful when its limits are considered.",
+              "c": "Visual surveys cannot reveal changes near restored channels.",
+              "d": "Two seasons are sufficient to measure all population changes."
+            }
+          },
+          {
+            "n": 26,
+            "question": "Why were both missed calls and false identifications reported?",
+            "options": {
+              "a": "To show that the equipment had failed completely.",
+              "b": "To avoid concealing uneven patterns of error.",
+              "c": "To remove the need for specialist judgement.",
+              "d": "To establish which site had the most visitors."
+            }
+          }
+        ]
+      },
+      "answers": {
+        "14": "b",
+        "15": "a",
+        "16": "b",
+        "17": "b",
+        "18": "b",
+        "19": "a",
+        "20": "c",
+        "21": "b",
+        "22": "c",
+        "23": "d",
+        "24": "c",
+        "25": "b",
+        "26": "b"
+      },
+      "explanations": {
+        "14": "Paragraph A says equipment can collect sounds for weeks without an observer present.",
+        "15": "Paragraph B explains that dawn and noon recordings are not directly comparable.",
+        "16": "Paragraph C uses a pump to show why an impressive frequency band need not represent wildlife.",
+        "17": "Paragraph D contrasts clear training recordings with obscured calls in a noisy marsh.",
+        "18": "Paragraph B explicitly includes unaltered areas.",
+        "19": "Paragraph H states that the findings were considered after two seasons.",
+        "20": "The devices are described as identical; their country of manufacture is not stated.",
+        "21": "Paragraph F says confident identifications were still checked.",
+        "22": "Paragraph E contrasts path-side fence posts with the marsh interior.",
+        "23": "Paragraph G discusses retention limits and restricted access to intelligible conversations.",
+        "24": "Paragraph F mentions residents' knowledge of a factory's working hours.",
+        "25": "Paragraph H gives alternative explanations and combines recordings with other observations.",
+        "26": "Paragraph D explains that a single correctness percentage would hide errors concentrated in particular conditions."
+      },
+      "source": "Original Hatoove practice passages and questions authored with AI assistance on 2026-11-28. Named places and research programmes are fictional teaching scenarios; no official IELTS passages or items copied. Human content review pending."
+    },
+    {
+      "version": "v1",
+      "examId": "ielts-academic",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "setId": "ielts-academic.lv3.original01",
+      "family": "LV3",
+      "section": "LV",
+      "part": 3,
+      "title": "When a shorter route takes longer",
+      "interaction": "single_choice",
+      "itemCount": 14,
+      "payload": {
+        "text": "A\nA navigation application usually recommends the journey with the lowest predicted travel time. For one driver, this seems an uncontroversial objective. For a city, however, the result of thousands of people following individual recommendations can be harder to predict. A narrow residential road may become crowded because it briefly appears faster than a main route. Once enough drivers enter it, the apparent advantage disappears. The interesting problem is not that drivers behave irrationally. It is that individually reasonable decisions can interact in ways that make the shared system perform poorly.\n\nB\nTransport analysts distinguish between the time a traveller experiences and the delay that traveller imposes on others. When traffic is light, an additional car may have little effect. Near capacity, the same car can contribute to a queue that slows many people behind it. A route planner that considers only its own user's arrival time has no direct reason to include that wider cost. This difference does not imply that private navigation is useless. It explains why a service that works well for an isolated journey may need additional constraints when widely adopted.\n\nC\nConsider a simplified network with two roads between the same places. One has a narrow bridge near the beginning; the other has a narrow bridge near the end. Drivers distribute themselves between the routes. If a connecting road opens between the bridges, it may look as though everyone has gained an attractive shortcut. Yet drivers choosing that connection can end up placing pressure on both bottlenecks. Under some traffic conditions, closing the connection can reduce the journey time experienced by all drivers. This is a property of certain network arrangements, not a claim that removing roads always improves traffic.\n\nD\nReal streets are more complicated than such diagrams. People travel at different times, use different modes and respond differently to delays. Deliveries, school entrances and pedestrian crossings create constraints that a diagram may omit. A proposed change therefore needs more than an elegant theoretical explanation. In a trial in the fictional city of Norchester, analysts used traffic counts, bus journey records and interviews with residents before changing access to a connecting street. They treated the network model as a way to generate questions about the trial, rather than as evidence that the trial had already succeeded.\n\nE\nThe evaluation also had to define what success meant. Car travel time was one consideration, but residents cared about crossing the road and hearing conversations in their gardens. Bus passengers cared about reliability, especially when a short delay caused them to miss a connection. The team published separate measures rather than combining everything into a single score whose weights were difficult to justify. A change could benefit one group while inconveniencing another. Making that disagreement visible was preferable to announcing a universal improvement based on a number that most participants had no opportunity to interpret.\n\nF\nTiming complicated the comparison. Immediately after the restriction began, some drivers followed their old route and turned around at the barrier. Others tried several alternatives before settling into a new pattern. Measurements from the first morning would therefore have exaggerated disruption. On the other hand, waiting only for a favourable week would have been equally misleading. The evaluation specified observation periods in advance and compared similar school weeks. It also recorded roadworks elsewhere in the city. These choices did not remove every uncertainty, but they made it harder to select results solely because they supported a preferred conclusion.\n\nG\nNavigation providers can help by incorporating legal access restrictions and avoiding unsuitable streets. However, the goal of preventing congestion everywhere cannot be achieved simply by sending every user along a different road. Recommendations affect the conditions on which later recommendations depend, and some streets have little spare capacity. Sharing aggregate traffic information may improve predictions, but it does not resolve the political question of how road space should be allocated. That question includes people who never use the application: pedestrians, cyclists and residents still experience the consequences of the routes it recommends.\n\nH\nThe Norchester trial produced mixed results. Average car journeys within the measured area became slightly longer, while bus journeys became more predictable and residents reported easier crossings. The council retained the restriction but modified delivery access during quiet hours. It did not claim that theory had promised or delivered a faster trip for every driver. The decision reflected a publicly stated balance among different objectives. The wider lesson is that a shortcut is not inherently beneficial merely because it reduces distance on a map. Understanding its value requires asking who uses the network, how their choices interact and whose time or safety is being counted.",
+        "questions": [
+          {
+            "n": 27,
+            "question": "What is the central problem introduced in paragraph A?",
+            "options": {
+              "a": "Drivers cannot understand route recommendations.",
+              "b": "Individual route choices can produce an inefficient shared outcome.",
+              "c": "Residential roads are always faster than main roads.",
+              "d": "Applications recommend routes without estimating time."
+            }
+          },
+          {
+            "n": 28,
+            "question": "What wider cost is described in paragraph B?",
+            "options": {
+              "a": "The price paid for a navigation subscription.",
+              "b": "The delay an additional traveller creates for others.",
+              "c": "The distance between two bridges.",
+              "d": "The cost of producing road maps."
+            }
+          },
+          {
+            "n": 29,
+            "question": "In the simplified network, the connecting road may make travel worse because it",
+            "options": {
+              "a": "reduces the number of destinations.",
+              "b": "causes drivers to use both bottlenecks.",
+              "c": "prevents all drivers from changing route.",
+              "d": "removes the two original bridges."
+            }
+          },
+          {
+            "n": 30,
+            "question": "How did the Norchester team use its model?",
+            "options": {
+              "a": "As a source of questions to investigate.",
+              "b": "As proof that the restriction would work.",
+              "c": "As a replacement for traffic counts.",
+              "d": "As a reason to ignore bus journeys."
+            }
+          },
+          {
+            "n": 31,
+            "question": "The writer believes removing a road always improves traffic. Choose YES, NO or NOT GIVEN.",
+            "options": {
+              "a": "YES",
+              "b": "NO",
+              "c": "NOT GIVEN"
+            }
+          },
+          {
+            "n": 32,
+            "question": "The writer regards private navigation as entirely useless. Choose YES, NO or NOT GIVEN.",
+            "options": {
+              "a": "YES",
+              "b": "NO",
+              "c": "NOT GIVEN"
+            }
+          },
+          {
+            "n": 33,
+            "question": "The application used in Norchester had more than a million subscribers. Choose YES, NO or NOT GIVEN.",
+            "options": {
+              "a": "YES",
+              "b": "NO",
+              "c": "NOT GIVEN"
+            }
+          },
+          {
+            "n": 34,
+            "question": "Publishing separate measures can make conflicts between objectives clearer. Choose YES, NO or NOT GIVEN.",
+            "options": {
+              "a": "YES",
+              "b": "NO",
+              "c": "NOT GIVEN"
+            }
+          },
+          {
+            "n": 35,
+            "question": "Which paragraph discusses choosing observation periods before seeing the results?",
+            "options": {
+              "a": "D",
+              "b": "E",
+              "c": "F",
+              "d": "G"
+            }
+          },
+          {
+            "n": 36,
+            "question": "Which paragraph argues that better information cannot itself decide who should receive road space?",
+            "options": {
+              "a": "B",
+              "b": "D",
+              "c": "F",
+              "d": "G"
+            }
+          },
+          {
+            "n": 37,
+            "question": "Which paragraph reports an adjustment to delivery access?",
+            "options": {
+              "a": "C",
+              "b": "E",
+              "c": "G",
+              "d": "H"
+            }
+          },
+          {
+            "n": 38,
+            "question": "Why could the first morning give a misleading impression?",
+            "options": {
+              "a": "Drivers had not yet adapted to the restriction.",
+              "b": "All schools were permanently closed.",
+              "c": "The council had stopped measuring traffic.",
+              "d": "The application had deleted every route."
+            }
+          },
+          {
+            "n": 39,
+            "question": "What happened to average car journeys in the measured area?",
+            "options": {
+              "a": "They became slightly longer.",
+              "b": "They were reduced by half.",
+              "c": "They became impossible to measure.",
+              "d": "They became identical to bus journeys."
+            }
+          },
+          {
+            "n": 40,
+            "question": "Which statement best expresses the final conclusion?",
+            "options": {
+              "a": "A shorter distance guarantees a better journey for everyone.",
+              "b": "Network decisions require attention to interactions and competing objectives.",
+              "c": "Only application users should influence transport policy.",
+              "d": "Theoretical models should never inform street trials."
+            }
+          }
+        ]
+      },
+      "answers": {
+        "27": "b",
+        "28": "b",
+        "29": "b",
+        "30": "a",
+        "31": "b",
+        "32": "b",
+        "33": "c",
+        "34": "a",
+        "35": "c",
+        "36": "d",
+        "37": "d",
+        "38": "a",
+        "39": "a",
+        "40": "b"
+      },
+      "explanations": {
+        "27": "Paragraph A explains how many reasonable individual choices can remove a shortcut's advantage.",
+        "28": "The paragraph contrasts a user's own travel time with the delay imposed on other travellers.",
+        "29": "Paragraph C states that the connection can place pressure on both bottlenecks.",
+        "30": "Paragraph D explicitly distinguishes generating questions from evidence of success.",
+        "31": "Paragraph C expressly rejects that universal claim.",
+        "32": "Paragraph B says the wider-cost problem does not imply that private navigation is useless.",
+        "33": "No application subscriber total is given.",
+        "34": "Paragraph E argues for making different groups' gains and losses visible.",
+        "35": "Paragraph F describes periods specified in advance and similar school weeks.",
+        "36": "Paragraph G distinguishes improved prediction from political allocation.",
+        "37": "Paragraph H states that quiet-hour delivery access was modified.",
+        "38": "Paragraph F describes drivers turning around and trying alternatives before habits settled.",
+        "39": "Paragraph H directly reports a slight increase in average car journey times.",
+        "40": "Paragraph H asks whose time and safety are counted and how users' choices interact."
+      },
+      "source": "Original Hatoove practice passages and questions authored with AI assistance on 2026-11-28. Named places and research programmes are fictional teaching scenarios; no official IELTS passages or items copied. Human content review pending."
+    }
+  ],
+  "media": [
+    {
+      "mediaId": "ielts-academic.hv1.original01.audio",
+      "version": "v1",
+      "examId": "ielts-academic",
+      "path": "content/exams/ielts-academic/audio/hv1.original01-v1.wav",
+      "sha256": "b7c8529760874b03d299b34520320a942dc6e7895736b2cccbefe5db88dd90fe",
+      "byteLength": 18365842,
+      "durationMs": 382621,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, en-GB-Standard-A/B/C (machine speech); script authored in content/exams/ielts-academic/listening-source.json#hv1-original01"
+    },
+    {
+      "mediaId": "ielts-academic.hv2.original01.audio",
+      "version": "v1",
+      "examId": "ielts-academic",
+      "path": "content/exams/ielts-academic/audio/hv2.original01-v1.wav",
+      "sha256": "f79d8ca06fb73d9ac92b35a06244427ed94bbe26dc2d95985daec412e7279536",
+      "byteLength": 17914842,
+      "durationMs": 373225,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, en-GB-Standard-A/B/C (machine speech); script authored in content/exams/ielts-academic/listening-source.json#hv2-original01"
+    },
+    {
+      "mediaId": "ielts-academic.hv3.original01.audio",
+      "version": "v1",
+      "examId": "ielts-academic",
+      "path": "content/exams/ielts-academic/audio/hv3.original01-v1.wav",
+      "sha256": "cd7aeb5e7398a233f2e16dfbf507a95e3388ccc994699050a7f36112ea771497",
+      "byteLength": 19969460,
+      "durationMs": 416030,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, en-GB-Standard-A/B/C (machine speech); script authored in content/exams/ielts-academic/listening-source.json#hv3-original01"
+    },
+    {
+      "mediaId": "ielts-academic.hv4.original01.audio",
+      "version": "v1",
+      "examId": "ielts-academic",
+      "path": "content/exams/ielts-academic/audio/hv4.original01-v1.wav",
+      "sha256": "6ec54b9d90f83f856942b2eada249d19b57e79d4065dd1151f875c2e00a01c7f",
+      "byteLength": 21634530,
+      "durationMs": 450718,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, en-GB-Standard-A/B/C (machine speech); script authored in content/exams/ielts-academic/listening-source.json#hv4-original01"
+    }
+  ],
+  "writingTasks": [
+    {
+      "version": "v1",
+      "examId": "ielts-academic",
+      "family": "writing",
+      "section": "SA",
+      "register": "academic",
+      "rubricVersion": "v1",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original AI-assisted Hatoove IELTS Academic practice task, 2026-11-28. Human review pending; no official task copied.",
+      "taskId": "ielts-academic.writing.original01.task1",
+      "topic": "Task 1: Travel to a university campus",
+      "situation": "Spend about 20 minutes on this task. The table shows the percentage of journeys to Westhaven University made by each mode of transport in three years. Summarise the main features and make relevant comparisons. Write at least 150 words.\n\n| Mode of transport | 2010 | 2018 | 2026 |\n| --- | --- | --- | --- |\n| Private car | 52% | 41% | 30% |\n| Bus | 24% | 27% | 29% |\n| Bicycle | 12% | 19% | 27% |\n| Walking | 12% | 13% | 14% |\n\nEach column totals 100%. The figures form an original practice dataset.",
+      "adressat": "An academic or neutral report; no greeting or sign-off.",
+      "leitpunkte": [
+        "Select the most important trends for an overview.",
+        "Compare the modes and changes using accurate figures.",
+        "Organise the report in connected paragraphs.",
+        "Describe the information shown without inventing causes."
+      ],
+      "rubricId": "writing.ielts-academic.task1"
+    },
+    {
+      "version": "v1",
+      "examId": "ielts-academic",
+      "family": "writing",
+      "section": "SA",
+      "register": "academic",
+      "rubricVersion": "v1",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original AI-assisted Hatoove IELTS Academic practice task, 2026-11-28. Human review pending; no official task copied.",
+      "taskId": "ielts-academic.writing.original01.task2",
+      "topic": "Task 2: Public funding for practical skills",
+      "situation": "Spend about 40 minutes on this task. Some people think local governments should fund free courses that teach adults practical skills, such as repairing household objects or managing personal finances. Others believe adults should pay for this training themselves. Discuss both views and give your own opinion. Support your response with reasons and relevant examples. Write at least 250 words.",
+      "adressat": "An academic or semi-formal essay for a general educated reader.",
+      "leitpunkte": [
+        "Explain the case for public funding.",
+        "Explain the case for individual payment.",
+        "State and develop your own position.",
+        "Support your ideas with relevant reasons or examples."
+      ],
+      "rubricId": "writing.ielts-academic.task2"
+    }
+  ],
+  "rubrics": [
+    {
+      "rubricId": "writing.ielts-academic.task1",
+      "version": "v1",
+      "examId": "ielts-academic",
+      "family": "writing",
+      "policy": "ielts-academic-formative-v1",
+      "feedbackKind": "ielts-academic-criteria",
+      "criteria": [
+        {
+          "key": "ielts_task",
+          "label": "Task Achievement",
+          "bands": {
+            "STRONG": 3,
+            "DEVELOPING": 2,
+            "LIMITED": 1,
+            "NO_EVIDENCE": 0
+          },
+          "bandLabels": {
+            "STRONG": "Strong evidence",
+            "DEVELOPING": "Developing evidence",
+            "LIMITED": "Limited evidence",
+            "NO_EVIDENCE": "No assessable evidence"
+          },
+          "descriptors": {
+            "STRONG": "Presents a clear overview and accurate key features of the supplied visual information, with relevant comparisons and no unsupported explanations.",
+            "DEVELOPING": "Reports some correct features, but the overview or comparisons are incomplete, or supporting details contain inaccuracies.",
+            "LIMITED": "Lists isolated details or gives a misleading account; a meaningful overview is missing and key comparisons are overlooked.",
+            "NO_EVIDENCE": "Provides no meaningful response to the assigned task."
+          }
+        },
+        {
+          "key": "ielts_cohesion",
+          "label": "Coherence and Cohesion",
+          "bands": {
+            "STRONG": 3,
+            "DEVELOPING": 2,
+            "LIMITED": 1,
+            "NO_EVIDENCE": 0
+          },
+          "bandLabels": {
+            "STRONG": "Strong evidence",
+            "DEVELOPING": "Developing evidence",
+            "LIMITED": "Limited evidence",
+            "NO_EVIDENCE": "No assessable evidence"
+          },
+          "descriptors": {
+            "STRONG": "Organises ideas clearly with purposeful paragraphs, logical progression and unobtrusive links.",
+            "DEVELOPING": "Has an identifiable sequence, with some awkward links, unclear references or uneven paragraphing.",
+            "LIMITED": "Connections are frequently unclear; repetition or weak organisation makes the response difficult to follow.",
+            "NO_EVIDENCE": "Provides too little connected language to assess organisation."
+          }
+        },
+        {
+          "key": "ielts_lexis",
+          "label": "Lexical Resource",
+          "bands": {
+            "STRONG": 3,
+            "DEVELOPING": 2,
+            "LIMITED": 1,
+            "NO_EVIDENCE": 0
+          },
+          "bandLabels": {
+            "STRONG": "Strong evidence",
+            "DEVELOPING": "Developing evidence",
+            "LIMITED": "Limited evidence",
+            "NO_EVIDENCE": "No assessable evidence"
+          },
+          "descriptors": {
+            "STRONG": "Uses precise and flexible vocabulary appropriate to the task, with only occasional slips.",
+            "DEVELOPING": "Uses sufficient vocabulary to express the main meaning, but repetition or imprecision limits detail.",
+            "LIMITED": "Restricted vocabulary and frequent word-choice or word-formation errors obscure meaning.",
+            "NO_EVIDENCE": "Provides insufficient meaningful vocabulary to assess."
+          }
+        },
+        {
+          "key": "ielts_grammar",
+          "label": "Grammatical Range and Accuracy",
+          "bands": {
+            "STRONG": 3,
+            "DEVELOPING": 2,
+            "LIMITED": 1,
+            "NO_EVIDENCE": 0
+          },
+          "bandLabels": {
+            "STRONG": "Strong evidence",
+            "DEVELOPING": "Developing evidence",
+            "LIMITED": "Limited evidence",
+            "NO_EVIDENCE": "No assessable evidence"
+          },
+          "descriptors": {
+            "STRONG": "Uses varied sentence structures with sustained control; occasional errors rarely affect understanding.",
+            "DEVELOPING": "Combines simple and some complex structures; recurring errors sometimes reduce clarity.",
+            "LIMITED": "Relies heavily on simple patterns and makes frequent errors that interfere with understanding.",
+            "NO_EVIDENCE": "Provides too little intelligible sentence structure to assess."
+          }
+        }
+      ],
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove qualitative formative descriptors (2026-11-28), organised around IELTS writing criteria. These categories are not official IELTS bands; no conversion, aggregate score or calibration claim. Format reference: https://ielts.org/take-a-test/test-types/ielts-academic-test/ielts-academic-format-writing"
+    },
+    {
+      "rubricId": "writing.ielts-academic.task2",
+      "version": "v1",
+      "examId": "ielts-academic",
+      "family": "writing",
+      "policy": "ielts-academic-formative-v1",
+      "feedbackKind": "ielts-academic-criteria",
+      "criteria": [
+        {
+          "key": "ielts_task",
+          "label": "Task Response",
+          "bands": {
+            "STRONG": 3,
+            "DEVELOPING": 2,
+            "LIMITED": 1,
+            "NO_EVIDENCE": 0
+          },
+          "bandLabels": {
+            "STRONG": "Strong evidence",
+            "DEVELOPING": "Developing evidence",
+            "LIMITED": "Limited evidence",
+            "NO_EVIDENCE": "No assessable evidence"
+          },
+          "descriptors": {
+            "STRONG": "Answers the question directly, maintains a clear position, and develops relevant reasons and examples.",
+            "DEVELOPING": "Presents a position and relevant ideas, but development or support is uneven, or parts of the question are insufficiently addressed.",
+            "LIMITED": "Provides limited relevant argument; the position is unclear or major parts of the question are not addressed.",
+            "NO_EVIDENCE": "Provides no meaningful response to the assigned task."
+          }
+        },
+        {
+          "key": "ielts_cohesion",
+          "label": "Coherence and Cohesion",
+          "bands": {
+            "STRONG": 3,
+            "DEVELOPING": 2,
+            "LIMITED": 1,
+            "NO_EVIDENCE": 0
+          },
+          "bandLabels": {
+            "STRONG": "Strong evidence",
+            "DEVELOPING": "Developing evidence",
+            "LIMITED": "Limited evidence",
+            "NO_EVIDENCE": "No assessable evidence"
+          },
+          "descriptors": {
+            "STRONG": "Organises ideas clearly with purposeful paragraphs, logical progression and unobtrusive links.",
+            "DEVELOPING": "Has an identifiable sequence, with some awkward links, unclear references or uneven paragraphing.",
+            "LIMITED": "Connections are frequently unclear; repetition or weak organisation makes the response difficult to follow.",
+            "NO_EVIDENCE": "Provides too little connected language to assess organisation."
+          }
+        },
+        {
+          "key": "ielts_lexis",
+          "label": "Lexical Resource",
+          "bands": {
+            "STRONG": 3,
+            "DEVELOPING": 2,
+            "LIMITED": 1,
+            "NO_EVIDENCE": 0
+          },
+          "bandLabels": {
+            "STRONG": "Strong evidence",
+            "DEVELOPING": "Developing evidence",
+            "LIMITED": "Limited evidence",
+            "NO_EVIDENCE": "No assessable evidence"
+          },
+          "descriptors": {
+            "STRONG": "Uses precise and flexible vocabulary appropriate to the task, with only occasional slips.",
+            "DEVELOPING": "Uses sufficient vocabulary to express the main meaning, but repetition or imprecision limits detail.",
+            "LIMITED": "Restricted vocabulary and frequent word-choice or word-formation errors obscure meaning.",
+            "NO_EVIDENCE": "Provides insufficient meaningful vocabulary to assess."
+          }
+        },
+        {
+          "key": "ielts_grammar",
+          "label": "Grammatical Range and Accuracy",
+          "bands": {
+            "STRONG": 3,
+            "DEVELOPING": 2,
+            "LIMITED": 1,
+            "NO_EVIDENCE": 0
+          },
+          "bandLabels": {
+            "STRONG": "Strong evidence",
+            "DEVELOPING": "Developing evidence",
+            "LIMITED": "Limited evidence",
+            "NO_EVIDENCE": "No assessable evidence"
+          },
+          "descriptors": {
+            "STRONG": "Uses varied sentence structures with sustained control; occasional errors rarely affect understanding.",
+            "DEVELOPING": "Combines simple and some complex structures; recurring errors sometimes reduce clarity.",
+            "LIMITED": "Relies heavily on simple patterns and makes frequent errors that interfere with understanding.",
+            "NO_EVIDENCE": "Provides too little intelligible sentence structure to assess."
+          }
+        }
+      ],
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Original Hatoove qualitative formative descriptors (2026-11-28), organised around IELTS writing criteria. These categories are not official IELTS bands; no conversion, aggregate score or calibration claim. Format reference: https://ielts.org/take-a-test/test-types/ielts-academic-test/ielts-academic-format-writing"
+    }
+  ]
+}

@@ -463,7 +463,7 @@ export async function runJourneyApiCheck() {
    * passed, and the runtime is forced offline, so no provider call is even reachable.
    */
   const startWorker = async () => {
-    const env = { ...process.env, B1PREP_FORCE_OFFLINE: '1', B1PREP_CONTENT_MODE: 'internal-preview' };
+    const env = { ...process.env, NODE_ENV: 'test', HATOVE_GRADER_MODE: 'stub', B1PREP_FORCE_OFFLINE: '1', B1PREP_CONTENT_MODE: 'internal-preview' };
     for (const key of ['DEEPSEEK_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY']) delete env[key];
     const child = spawn(process.execPath, ['server/worker.mjs', '--interval=100'], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';

@@ -2,6 +2,7 @@ import { getLocale, validLocale } from './core.js';
 
 // Curated UI directions only; assessment payloads are never translation lookup keys.
 const rows = {
+  matching_opinions: ['Ordnen Sie jeder Überschrift die passende Meinung zu.', 'Match each heading to the appropriate opinion.', 'Доберіть до кожного заголовка відповідну думку.', 'اختر الرأي المناسب لكل عنوان.', 'Her başlığı uygun görüşle eşleştirin.'],
   'public.reading': ['Lesen Sie die Situation. Welcher Kurs erfüllt alle Anforderungen?', 'Read the situation. Which course meets all the requirements?', 'Прочитайте ситуацію. Який курс відповідає всім вимогам?', 'اقرأ الموقف. أي دورة تستوفي جميع المتطلبات؟', 'Durumu okuyun. Hangi kurs tüm koşulları karşılıyor?'],
   'public.grammar': ['Wählen Sie das Wort, das den Satz vervollständigt.', 'Choose the word that completes the sentence.', 'Виберіть слово, яке доповнює речення.', 'اختر الكلمة التي تكمل الجملة.', 'Cümleyi tamamlayan sözcüğü seçin.'],
   'public.writing': ['Lesen Sie Milas Nachricht. Schreiben Sie eine Antwort und gehen Sie auf alle vier Punkte ein.', 'Read Mila’s message. Write a reply and address all four points.', 'Прочитайте повідомлення Міли. Напишіть відповідь і розкрийте всі чотири пункти.', 'اقرأ رسالة ميلا. اكتب ردًا وتناول النقاط الأربع كلها.', 'Mila’nın mesajını okuyun. Dört noktanın tamamına değinen bir yanıt yazın.'],
@@ -19,6 +20,7 @@ const rows = {
 };
 const locales = ['de', 'en', 'uk', 'ar', 'tr'];
 const digests = {
+  matching_opinions: "082033098d71976a9186cc98819262c056563bab75cc030d09f6ca924cf27e8b",
   "public.reading": "d7263cf9f4eb62437284399c541164212ac530fb345f97b01ca18992f6c57075",
   "public.grammar": "da1301fb196cfa90808afe4a7cf9efd89e09eab78db330f0969f4833ef0956e0",
   "public.writing": "e8535bbeac7bb41858f49a965cca810cab54b8fd6431b49a567ae92ebad4055f",
@@ -34,11 +36,34 @@ const digests = {
   "writing.choose_one": "18cd1300424f9e3087e576554c066e518a53b001249c0dcd3e3c8325971e8e2d",
   "mock.timing": "8085ded3ee5f1699975ff0c5141bf52b2de9596fb13d9aeb658442c1eeac6b06"
 };
-export const INSTRUCTIONS = Object.freeze(Object.fromEntries(Object.entries(rows).map(([id, values]) => [id, Object.freeze({
-  id, version: 'ui-v1', examLanguage: 'de', original: values[0], sourceSha256: digests[id],
+const englishDigests = {
+  "matching_opinions": "bebe0bc4b27395865af47fb9606565cfed90247100f89f756effffc93fbe9508",
+  "public.reading": "2df1049f5793a3a9b2751dc08d73eca752896ac80252bc4cf506e249a401360a",
+  "public.grammar": "75d7086e5ce37c07dfd608848106f6611a2258ee15622422c60b41cc71af6dee",
+  "public.writing": "a2baa96efcb1023d4427fdf00a783bc11d6a45ca3c926a9f895b5ad245d66a3d",
+  "matching_headlines": "03b06f39e961cc7d72fb3558f81829c940b57344231d0d9c4adcf1f0cdc6d2f5",
+  "matching_ads": "d7ae27824afcf628d89fb9f5c7e5f1c6a8192484b079657b9d82349aada67cb2",
+  "single_choice": "a8fe3f373d26b58702e6d9a1043447c4f60d3e790921ac40abb65608f44fe924",
+  "grouped_choice": "096cd7db3e5507fc658f3d4124a88286d6a0cc77df6da788d1b06e93cf66d690",
+  "gap_choice": "b8b6fb99caebdb239de3737cfa38ec47e28175f6a026a6cca17a892075a9faf9",
+  "gap_bank": "1f3daf5ff4005d03d23a3da5d6764602e4ad3166e05ef0b4f1b1f0858b64f0f2",
+  "fixed_audio": "49dc2ad9646491730943b6d98c75cbd7c8dcf54b7a6c776cbbb68c3a5329b032",
+  "listening.playback": "26106b513015a4929c8cbb2fc66f600f9086db8e1216392d2e7cd90959748be7",
+  "writing.assigned": "8a577f450716a685917d7de640c44d21e6821e512de0ba8953de80e33cc5cbf6",
+  "writing.choose_one": "3587d45e06ac20a065e0341d037dd329120f2de397e7e6daee8e1037ed4c21c4",
+  "mock.timing": "444ecbaffee19102e27f30266e6abc4a4eb2853bec878acfb229188453203a89"
+};
+export const INSTRUCTIONS = Object.freeze(Object.fromEntries(Object.entries(rows).flatMap(([baseId, values]) => ['de','en'].map(examLanguage => {
+ const id=examLanguage==='de'?baseId:baseId+'.en';
+ return [id, Object.freeze({
+  id, version: 'ui-v1', examLanguage, original: values[examLanguage==='de'?0:1], sourceSha256: examLanguage==='de'?digests[baseId]:englishDigests[baseId],
   translations: Object.freeze(Object.fromEntries(locales.map((locale, index) => [locale, values[index]]))),
-  parameters: Object.freeze(id === 'listening.playback' ? { maxPlays: 'positive-integer' } : {}),
-})])));
+  parameters: Object.freeze(baseId === 'listening.playback' ? { maxPlays: 'positive-integer' } : {}),
+})]; }))));
+export const instructionFor = (id,language) => {
+ const exact=Object.hasOwn(INSTRUCTIONS,id)?INSTRUCTIONS[id]:null;
+ return exact?.examLanguage===language ? exact : INSTRUCTIONS[id+'.'+language] || null;
+};
 const unavailable = {
   de: 'Die Übersetzung dieser Anleitung ist nicht verfügbar. Die Originalanleitung bleibt sichtbar.',
   en: 'A translation of these directions is unavailable. The original directions remain visible.',
@@ -57,7 +82,7 @@ const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&a
 const format = (template, parameters) => template.replace(/\{([A-Za-z][A-Za-z0-9]*)\}/g, (_, key) => String(parameters[key]));
 export function instructionView({ id, examLanguage, original, parameters = {}, locale = getLocale() }) {
   const selected = validLocale(locale) ? locale : 'de';
-  const entry = typeof id === 'string' && Object.hasOwn(INSTRUCTIONS, id) ? INSTRUCTIONS[id] : null;
+  const entry = typeof id === 'string' ? instructionFor(id,examLanguage) : null;
   const record = parameters && typeof parameters === 'object' && !Array.isArray(parameters)
     && [Object.prototype, null].includes(Object.getPrototypeOf(parameters));
   const names = record ? Reflect.ownKeys(parameters) : [];

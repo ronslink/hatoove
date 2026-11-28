@@ -19,8 +19,8 @@ const MEDIA_PATH = path.join(DIR, 'listening-media.json');
 const MANIFEST_PATH = path.join(DIR, 'manifest.json');
 const OUT_PATH = path.join(DIR, 'listening-package.json');
 
-const BLUEPRINT_VERSION = 'v2';
-const RELEASE_VERSION = 'v2';
+const BLUEPRINT_VERSION = 'v4';
+const RELEASE_VERSION = 'v4';
 const LV_SECONDS = 3900;
 const HV_SECONDS = 2400;
 const SA_SECONDS = 4500;
@@ -107,7 +107,7 @@ export async function buildGoetheB2ListeningPackage() {
     interaction: s.interaction,
     itemCount: s.itemCount,
   }));
-  const writingChoices = structuredClone(manifest.forms[1].writingChoices);
+  const writingTasks = structuredClone(manifest.forms[1].writingTasks);
 
   const pkg = {
     schemaVersion: 1,
@@ -131,7 +131,7 @@ export async function buildGoetheB2ListeningPackage() {
     forms: [
       {
         id: `${EXAM}.complete.original01`,
-        version: 'v1',
+        version: 'v2',
         title: 'Schriftliche Prüfung · Goethe-Zertifikat B2 (Lesen, Hören, Schreiben)',
         scope: 'complete_supported_written',
         sections: ['LV', 'HV', 'SA'],
@@ -141,11 +141,11 @@ export async function buildGoetheB2ListeningPackage() {
         timingPolicy: 'ordered-fixed-v1',
         feedback: 'finalise',
         members: [...lvMembers, ...hvMembers],
-        writingChoices,
+        writingTasks,
       },
       {
         id: `${EXAM}.listening.practice`,
-        version: 'v1',
+        version: 'v2',
         title: 'Hören · Übung (Goethe-Zertifikat B2)',
         scope: 'section',
         sections: ['HV'],
@@ -157,7 +157,7 @@ export async function buildGoetheB2ListeningPackage() {
       },
       {
         id: `${EXAM}.listening.mock`,
-        version: 'v1',
+        version: 'v2',
         title: 'Hören · Prüfungsmodus (Goethe-Zertifikat B2)',
         scope: 'section',
         sections: ['HV'],

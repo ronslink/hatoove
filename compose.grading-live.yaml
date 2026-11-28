@@ -1,0 +1,14 @@
+# Apply after the chosen local/production Compose files. The key belongs only to the worker.
+services:
+  worker:
+    environment:
+      NODE_ENV: production
+      HATOVE_GRADER_MODE: live
+      DEEPSEEK_API_KEY_FILE: /run/secrets/deepseek_api_key
+      DEEPSEEK_MODEL: deepseek-flash
+      HATOVE_GRADER_DAILY_USD_LIMIT: "${HATOVE_GRADER_DAILY_USD_LIMIT:-15}"
+    secrets:
+      - deepseek_api_key
+secrets:
+  deepseek_api_key:
+    file: "${HATOVE_DEEPSEEK_API_KEY_SOURCE:?Select the external DeepSeek key file}"

@@ -506,7 +506,7 @@ code {
 .exam-pill { background: var(--nav-active-bg); border-color: var(--nav-active-bg); color: var(--nav-ink); display: grid; gap: 10px; }
 .exam-pill strong { font-size: 16px; }
 .exam-pill span { color: var(--nav-ink-muted); font-size: 13px; }
-.exam-pill .exam-level { width: 52px; height: 52px; padding: 0; background: var(--nav-ink); color: var(--nav-bg); font-size: 24px; }
+.exam-pill .exam-level { min-width: 52px; width: fit-content; height: 52px; padding: 0 10px; background: var(--nav-ink); color: var(--nav-bg); font-size: 24px; }
 .exam-pill .select { color: var(--ink); }
 .stat { display: flex; flex-direction: column; gap: 6px; }
 .stat .num { font-size: 30px; color: var(--ink); }
@@ -643,3 +643,6 @@ button.btn.answer-option[data-state=wrong] .answer-verdict::before { content: '\
 
 
 
+.writing-table-scroll { max-width: 100%; overflow-x: auto; }
+.writing-data-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.writing-data-table th, .writing-data-table td { padding: .6rem; text-align: start; border-bottom: 1px solid currentColor; }

@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "examId": "ielts-academic",
+  "generatedBy": "tools/ielts-listening-tts-build.mjs",
+  "media": [
+    {
+      "mediaId": "ielts-academic.hv1.original01.audio",
+      "version": "v1",
+      "examId": "ielts-academic",
+      "path": "content/exams/ielts-academic/audio/hv1.original01-v1.wav",
+      "sha256": "b7c8529760874b03d299b34520320a942dc6e7895736b2cccbefe5db88dd90fe",
+      "byteLength": 18365842,
+      "durationMs": 382621,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, en-GB-Standard-A/B/C (machine speech); script authored in content/exams/ielts-academic/listening-source.json#hv1-original01"
+    },
+    {
+      "mediaId": "ielts-academic.hv2.original01.audio",
+      "version": "v1",
+      "examId": "ielts-academic",
+      "path": "content/exams/ielts-academic/audio/hv2.original01-v1.wav",
+      "sha256": "f79d8ca06fb73d9ac92b35a06244427ed94bbe26dc2d95985daec412e7279536",
+      "byteLength": 17914842,
+      "durationMs": 373225,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, en-GB-Standard-A/B/C (machine speech); script authored in content/exams/ielts-academic/listening-source.json#hv2-original01"
+    },
+    {
+      "mediaId": "ielts-academic.hv3.original01.audio",
+      "version": "v1",
+      "examId": "ielts-academic",
+      "path": "content/exams/ielts-academic/audio/hv3.original01-v1.wav",
+      "sha256": "cd7aeb5e7398a233f2e16dfbf507a95e3388ccc994699050a7f36112ea771497",
+      "byteLength": 19969460,
+      "durationMs": 416030,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, en-GB-Standard-A/B/C (machine speech); script authored in content/exams/ielts-academic/listening-source.json#hv3-original01"
+    },
+    {
+      "mediaId": "ielts-academic.hv4.original01.audio",
+      "version": "v1",
+      "examId": "ielts-academic",
+      "path": "content/exams/ielts-academic/audio/hv4.original01-v1.wav",
+      "sha256": "6ec54b9d90f83f856942b2eada249d19b57e79d4065dd1151f875c2e00a01c7f",
+      "byteLength": 21634530,
+      "durationMs": 450718,
+      "mimeType": "audio/wav",
+      "reviewStatus": "unreviewed",
+      "rightsStatus": "generated",
+      "source": "Google Cloud Text-to-Speech, en-GB-Standard-A/B/C (machine speech); script authored in content/exams/ielts-academic/listening-source.json#hv4-original01"
+    }
+  ]
+}

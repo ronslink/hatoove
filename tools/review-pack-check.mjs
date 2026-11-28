@@ -296,7 +296,14 @@ async function main() {
   });
 
   await check('every curated instruction digests to the sha256 it declares', async () => {
-    assert.deepEqual(instructionDigestProblems(await readInstructions()), []);
+    const instructions=await readInstructions();
+    assert.deepEqual(instructionDigestProblems(instructions), []);
+    const english=structuredClone(instructions['writing.assigned.en']);
+    english.translations.en+=' changed';
+    assert(instructionDigestProblems({english}).some(p=>p.includes('exam-language')));
+    const changedSource=structuredClone(instructions['writing.assigned.en']);
+    changedSource.original+=' changed';changedSource.translations.en=changedSource.original;
+    assert(instructionDigestProblems({changedSource}).some(p=>p.includes('sourceSha256')));
   });
 
   await check('the bundle is the pinned artifact and carries the delivered counts', async () => {

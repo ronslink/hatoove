@@ -30,6 +30,7 @@
  * database is the other worker's, exactly one of them.
  */
 
+import {IELTS_POLICY,IELTS_KIND,IELTS_KEYS,IELTS_BANDS,IELTS_INSTRUCTIONS} from '../writing-policy.mjs';
 import { createExamCatalogue } from '../preparation-contract.mjs';
 import { readWritingTask, writingAccess, readWritingOrigin, writingServable, readReleasedForm } from './packages.mjs';
 import { supportedWritingPolicy, DTZ_POLICY, DTZ_KIND, DTZ_INSTRUCTIONS, GOETHE_B1_POLICY, GOETHE_B1_KIND, GOETHE_B1_INSTRUCTIONS, TELC_B2_POLICY, TELC_B2_KIND, TELC_B2_INSTRUCTIONS, GOETHE_B2_POLICY, GOETHE_B2_KIND, GOETHE_B2_INSTRUCTIONS } from '../writing-policy.mjs';
@@ -99,10 +100,10 @@ export function firstSentence(text) {
 }
 
 export function stubGrade({ text = '', explanationLanguage = 'de', rubric = null, policy = null } = {}) {
-  if(policy===DTZ_POLICY||policy===GOETHE_B1_POLICY||policy===TELC_B2_POLICY||policy===GOETHE_B2_POLICY) {
-    const kind=policy===GOETHE_B1_POLICY?GOETHE_B1_KIND:policy===TELC_B2_POLICY?TELC_B2_KIND:policy===GOETHE_B2_POLICY?GOETHE_B2_KIND:DTZ_KIND;
-    const band=policy===DTZ_POLICY?'A2':'B';
-    const ver=policy===GOETHE_B1_POLICY?'goethe-b1-simulation-v1':policy===TELC_B2_POLICY?'telc-b2-simulation-v1':policy===GOETHE_B2_POLICY?'goethe-b2-simulation-v1':'dtz-simulation-v1';
+  if(policy===IELTS_POLICY||policy===DTZ_POLICY||policy===GOETHE_B1_POLICY||policy===TELC_B2_POLICY||policy===GOETHE_B2_POLICY) {
+    const kind=policy===IELTS_POLICY?IELTS_KIND:policy===GOETHE_B1_POLICY?GOETHE_B1_KIND:policy===TELC_B2_POLICY?TELC_B2_KIND:policy===GOETHE_B2_POLICY?GOETHE_B2_KIND:DTZ_KIND;
+    const band=policy===IELTS_POLICY?'DEVELOPING':policy===DTZ_POLICY?'A2':'B';
+    const ver=policy===IELTS_POLICY?'ielts-simulation-v1':policy===GOETHE_B1_POLICY?'goethe-b1-simulation-v1':policy===TELC_B2_POLICY?'telc-b2-simulation-v1':policy===GOETHE_B2_POLICY?'goethe-b2-simulation-v1':'dtz-simulation-v1';
     return {
       feedback:{kind,criteria:rubric.criteria.map(c=>({key:c.key,band,evidence:firstSentence(text).slice(0,500),
         comment:({'de':'Simulation ohne Sprachbewertung: Diese feste Beispielposition bewertet Ihren Text nicht.','en':'Simulation without language assessment: this fixed example position does not assess your text.','uk':'Симуляція без мовного оцінювання: ця фіксована позиція не оцінює ваш текст.','ar':'محاكاة دون تقييم لغوي: هذا المثال الثابت لا يقيّم نصك.','tr':'Dil değerlendirmesi olmadan simülasyon: bu sabit örnek metninizi değerlendirmez.'})[explanationLanguage]||'Simulation ohne Sprachbewertung.'})),corrections:[]},
@@ -470,12 +471,12 @@ export function createWorker({ pool, grade, providerIdentity, reclaimBatchSize=D
     if(intent.refusal||!intent.created)return {claimed:true,submissionId,outcome:'stale'};
     const invocation={attemptId:intent.attemptId,jobId:claimed.id,ownerId:row.owner_id,examId:row.exam_id,claimNumber:claimed.tries,token,row};
     const capture=createUsageCapture(identity),started=performance.now();
-    let assessment,graderFailed=false,receipt,returned=false,captured=false;
+    let assessment,graderFailed=false,receipt,returned=false,captured=false,notSent=false;
     const captureUsage=value=>{const result=capture.captureUsage(value);if(result.accepted)captured=true;return result;};
     try {
       assessment = await gradeFn({
         submissionId,
-        task, rubric, policy, policyInstructions:policy===DTZ_POLICY?DTZ_INSTRUCTIONS:policy===GOETHE_B1_POLICY?GOETHE_B1_INSTRUCTIONS:policy===TELC_B2_POLICY?TELC_B2_INSTRUCTIONS:policy===GOETHE_B2_POLICY?GOETHE_B2_INSTRUCTIONS:null, selectedOption,
+        task, rubric, policy, policyInstructions:policy===IELTS_POLICY?IELTS_INSTRUCTIONS:policy===DTZ_POLICY?DTZ_INSTRUCTIONS:policy===GOETHE_B1_POLICY?GOETHE_B1_INSTRUCTIONS:policy===TELC_B2_POLICY?TELC_B2_INSTRUCTIONS:policy===GOETHE_B2_POLICY?GOETHE_B2_INSTRUCTIONS:null, selectedOption,
         text: row.text,
         taskVersion: row.task_version,
         rubricId: row.rubric_id,
@@ -486,9 +487,10 @@ export function createWorker({ pool, grade, providerIdentity, reclaimBatchSize=D
       },{attemptId:intent.attemptId,captureUsage});
       returned=true;
       if(trustedBuiltin)capture.captureUsage({usageBasis:'not_applicable',modelReported:identity.promptVersion});
-    }catch{graderFailed=true;}finally{receipt=capture.close();}
+    }catch(error){graderFailed=true;notSent=identity.providerId==='deepseek'&&error!==null&&typeof error==='object'&&Object.getOwnPropertyDescriptor(error,'dispatchStatus')?.value==='not_sent'&&!captured;}finally{receipt=capture.close();}
     const duration=performance.now()-started,elapsedMs=Number.isFinite(duration)&&duration>=0&&duration<=MAX_ELAPSED_MS?Math.floor(duration):null;
     invocation.observation={transportStatus:returned||captured?'response':'uncertain',disposition:'pending',failureCode:null,receipt,receiptCaptured:true,elapsedMs,elapsedIssue:elapsedMs===null?(Number.isFinite(duration)?'out_of_range':'unavailable'):null};
+    if(notSent)invocation.observation={transportStatus:'definite_not_sent',disposition:'pending',failureCode:null,receipt,receiptCaptured:false,elapsedMs:null,elapsedIssue:'unavailable'};
     await persistReceipt(invocation);
     if(graderFailed)return completeFailure({submissionId,token,code:failureCodeOf(),invocation});
     try{

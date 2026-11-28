@@ -22,6 +22,11 @@ const cardKeys=['schemaVersion','cardId','currency','modelIds','unit','inputRate
 const receiptKeys=['modelReported','inputTokens','outputTokens','cachedInputTokens','reasoningOutputTokens','usageBasis'];
 const counterKeys=['inputTokens','outputTokens','cachedInputTokens','reasoningOutputTokens'];
 const modelIds=['fixture-model-a','fixture-model-b'];
+export const DEEPSEEK_MODEL='deepseek-flash';
+export const DEEPSEEK_MODELS=Object.freeze([DEEPSEEK_MODEL,'DeepSeek-V4.1-Flash-1017']);
+export const DEEPSEEK_PRICING_CARD='deepseek-flash-peak-20261128';
+export const DEEPSEEK_PROMPT='deepseek-writing-v2';
+const liveCard=()=>({schemaVersion:1,cardId:DEEPSEEK_PRICING_CARD,currency:'USD',modelIds:[...DEEPSEEK_MODELS],unit:1_000_000,inputRate:'0.3',cachedInputRate:'0.006',outputRate:'1.2',reasoningOutputRate:'1.2'});
 function priceCard(id){return {schemaVersion:1,cardId:id,currency:id==='synthetic-usd-v1'?'USD':'EUR',modelIds:['fixture-model-a'],unit:1_000_000,inputRate:'2',cachedInputRate:'0.5',outputRate:'4',reasoningOutputRate:'4'};}
 function decimal(value){
  if(typeof value!=='string'||value.length>25||!/^(0|[1-9][0-9]{0,11})(\.[0-9]{0,11}[1-9])?$/.test(value)||/\s/u.test(value))fail('provider_identity_invalid');
@@ -33,6 +38,12 @@ export function canonicalAmount(coefficient,scale=0){
 }
 export function sumAmounts(values){let scale=0,total=0n;for(const value of values){const [w,f='']=value.split('.');if(f.length>scale){total*=10n**BigInt(f.length-scale);scale=f.length;}total+=BigInt(w+f)*10n**BigInt(scale-f.length);}return canonicalAmount(total,scale);}
 function checkedCard(card){
+ if(!record(card,cardKeys))fail('provider_identity_invalid');
+ if(card.cardId===DEEPSEEK_PRICING_CARD){
+  const expected=liveCard();
+  if(!Array.isArray(card.modelIds)||types.isProxy(card.modelIds)||Reflect.ownKeys(card.modelIds).some(k=>!['0','1','length'].includes(k))||card.modelIds.length!==2||!['0','1'].every(k=>Object.getOwnPropertyDescriptor(card.modelIds,k)?.value===expected.modelIds[k])||cardKeys.some(k=>k!=='modelIds'&&card[k]!==expected[k]))fail('provider_identity_invalid');
+  return liveCard();
+ }
  if(!record(card,cardKeys)||card.schemaVersion!==1||!['synthetic-usd-v1','synthetic-eur-v1'].includes(card.cardId)||!['USD','EUR'].includes(card.currency)
   ||!Array.isArray(card.modelIds)||types.isProxy(card.modelIds)||card.modelIds.length!==1||Object.getOwnPropertyDescriptor(card.modelIds,'0')?.value!=='fixture-model-a'
   ||Reflect.ownKeys(card.modelIds).some(key=>!['0','length'].includes(key))||card.currency!==(card.cardId==='synthetic-usd-v1'?'USD':'EUR')||![1,1000,1000000].includes(card.unit))fail('provider_identity_invalid');
@@ -40,6 +51,12 @@ function checkedCard(card){
  return Object.fromEntries(cardKeys.map(key=>[key,key==='modelIds'?['fixture-model-a']:card[key]]));
 }
 export function validateProviderIdentity(selector,{builtin=false,policy=null}={}){
+ if(selector!==undefined&&!record(selector,['adapterId','pricingCardId']))fail('provider_identity_invalid');
+ if(!builtin&&selector?.adapterId==='deepseek-writing-v2'){
+  if(!record(selector,['adapterId','pricingCardId'])||selector.pricingCardId!==DEEPSEEK_PRICING_CARD)fail('provider_identity_invalid');
+  const card=liveCard();
+  return frozen({schemaVersion:1,adapterId:'deepseek-writing-v2',adapterVersion:'deepseek-writing-v2',providerId:'deepseek',operation:'writing_assessment',transportMode:'https',requestedModel:DEEPSEEK_MODEL,promptVersion:DEEPSEEK_PROMPT,pricingCardId:card.cardId,pricingCard:card,pricingSha256:hash(card)});
+ }
  const defaultId=builtin?(policy===DTZ_POLICY?'local-dtz-stub-v1':'local-telc-stub-v1'):'synthetic-grader-v1';
  if(selector===undefined)selector={adapterId:defaultId,pricingCardId:null};
  if(!record(selector,['adapterId','pricingCardId'])||selector.adapterId!==defaultId||![null,'synthetic-usd-v1','synthetic-eur-v1'].includes(selector.pricingCardId)
@@ -64,7 +81,7 @@ export function normalizeUsageReceipt(raw,identity){
  if(!record(raw,receiptKeys,['usageBasis'])||!['reported','missing','not_applicable','unsupported'].includes(raw.usageBasis))fail('invalid_receipt');
  const out={modelReported:raw.modelReported??null};
  if(out.modelReported!==null&&typeof out.modelReported!=='string')fail('invalid_receipt');
- let issue=null;const allowed=trusted.transportMode==='local_stub'?[trusted.promptVersion]:modelIds;
+ let issue=null;const allowed=trusted.transportMode==='local_stub'?[trusted.promptVersion]:trusted.providerId==='deepseek'?DEEPSEEK_MODELS:modelIds;
  if(out.modelReported!==null&&!allowed.includes(out.modelReported)){out.modelReported=null;issue='unrecognised_model';}
  for(const key of counterKeys){const value=raw[key]??null;if(value!==null&&(!Number.isSafeInteger(value)||Object.is(value,-0)||value<0||value>MAX_USAGE_COUNT))fail('invalid_receipt');out[key]=value;}
  if((out.cachedInputTokens!==null&&(out.inputTokens===null||out.cachedInputTokens>out.inputTokens))||(out.reasoningOutputTokens!==null&&(out.outputTokens===null||out.reasoningOutputTokens>out.outputTokens)))fail('invalid_receipt');

@@ -105,6 +105,16 @@ await check('unselected writing has no fabricated draft revision and objective-o
   const objective = fixture(); objective.saved = { ...base, writing_choices: [] }; await finaliseMockWriting({ session: objective.session, writing });
   assert.deepEqual(objective.calls[0].body, { expectedRevision: 1, eventId: 'event-1' });
 });
+await check('required tasks retain both acknowledged revisions and prefer a freshly reloaded server revision', async () => {
+  const f=fixture();f.saved={...base,writing_choices:[],writing_tasks:[{binding_id:'task1'},{binding_id:'task2'}],writing_attachments:[
+    {binding_id:'task1',attempt_id:'first',draft_revision:5},{binding_id:'task2',attempt_id:'second',draft_revision:2}]};
+  const writing={flush:async()=>true,active:{attempt:'second',revision:4}};
+  assert.equal(await finaliseMockWriting({session:f.session,writing,savedRevisions:{first:3},language:'en'}),true);
+  assert.deepEqual(f.calls[0].body.expectedWritingRevisions,{task1:5,task2:4});
+  const bad=fixture();bad.saved={...f.saved,state:'active'};
+  assert.equal(await finaliseMockWriting({session:bad.session,writing:{flush:async()=>true,active:{attempt:'other',revision:99}}}),false);
+  assert.equal(bad.calls.length,0);
+});
 await check('bound criterion labels preserve unequal DTZ scales without telc conversion', async () => {
   const rubric = { criteria: [{ key: 'dtz_aufgabe', label: 'Aufgabenbewältigung', bandLabels: { B1_PLUS: '5', B1: '4', ZERO: '0' } }, { key: 'dtz_korrektheit', label: 'Korrektheit', bandLabels: { B1_PLUS: 'B1 gut erfüllt', B1: 'B1 erfüllt', ZERO: '0' } }] };
   assert.deepEqual(writingCriterion({ key: 'dtz_aufgabe', label: 'wrong', band: 'B1_PLUS' }, rubric), { label: 'Aufgabenbewältigung', band: '5' });

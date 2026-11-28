@@ -213,13 +213,13 @@ export async function readInstructions() {
 
 /**
  * The provenance self-check that ships inside instructions.js: each curated direction carries the
- * sha256 of its own German original. Recomputing it here is an independent reading of the file.
+ * sha256 of its own exam-language original. Recomputing it here is an independent reading of the file.
  */
 export function instructionDigestProblems(instructions) {
   const problems = [];
   for (const [id, entry] of Object.entries(instructions)) {
     if (sha256(entry.original) !== entry.sourceSha256) problems.push(`${id}: sourceSha256 does not match its own original`);
-    if (entry.translations.de !== entry.original) problems.push(`${id}: the de translation is not the original`);
+    if (!LOCALES.includes(entry.examLanguage) || entry.translations[entry.examLanguage] !== entry.original) problems.push(`${id}: the exam-language translation is not the original`);
     for (const locale of LOCALES) {
       if (typeof entry.translations[locale] !== 'string' || !entry.translations[locale].trim()) problems.push(`${id}: ${locale} is empty`);
     }
@@ -659,13 +659,13 @@ function interfaceRows(data, language, scan) {
       section: 'interface/instructions',
       where: INSTRUCTION_SURFACES[id] ?? `not located by the static reference scan (examLanguage=${entry.examLanguage})`,
       kind: entry.examLanguage === language ? 'exam-language' : 'interface',
-      needs_translation: language === 'de' ? 'no' : 'yes',
+      needs_translation: language === entry.examLanguage ? 'no' : 'yes',
       source_kind: 'instruction-original',
-      source_de: entry.original,
-      source_note: `examLanguage=${entry.examLanguage}, version ${entry.version}, sha256 ${entry.sourceSha256.slice(0, 12)}…`,
+      source_de: entry.translations.de,
+      source_note: `examLanguage=${entry.examLanguage}, version ${entry.version}, sha256 ${entry.sourceSha256.slice(0, 12)}…` + (entry.examLanguage==='de' ? '' : `; original (${entry.examLanguage}): ${entry.original}`),
       source_file: 'public/assets/i18n/instructions.js',
-      source_locator: language === 'de' ? `INSTRUCTIONS["${id}"].original` : `INSTRUCTIONS["${id}"].translations.${language}`,
-      current: language === 'de' ? entry.original : entry.translations[language],
+      source_locator: language === entry.examLanguage ? `INSTRUCTIONS["${id}"].original` : `INSTRUCTIONS["${id}"].translations.${language}`,
+      current: entry.translations[language],
       status: 'machine_unreviewed',
     });
   }

@@ -6,7 +6,7 @@ import { createLocalePreference, bindShellText, updateShellMessages, messageMark
 import { checkoutMarkup, checkoutError, createCheckoutController, createCheckoutState } from '../public/app/checkout.js';
 import { preparationChoices } from '../public/app/preparation.js';
 import { guideContent } from '../public/app/guide-content.js';
-import { INSTRUCTIONS, instructionMarkup } from '../public/assets/i18n/instructions.js';
+import { INSTRUCTIONS, instructionFor, instructionMarkup } from '../public/assets/i18n/instructions.js';
 
 let passed = 0;
 const check = async (name, fn) => { await fn(); passed++; console.log('PASS ' + name); };
@@ -176,7 +176,7 @@ await check('shell locale entry point calls label-only hooks and settings send n
   for(const name of ['writing','mock','explanations','readAloud','checkout'])assert.match(hook,new RegExp(name+'\\.updateLocale'));
   assert.doesNotMatch(hook,/api\.|\.open\(|\.mount\(|renderSettings\(|route\(|innerHTML\s*=/);
   assert.match(source,/write: \(revision, patch\) => api\.settings\.write\(revision, patch\)/);assert.doesNotMatch(source,/theme:\s*state\.settings/);
-  assert.match(source,/state\.preparation\?\.exam_language/);assert.match(source,/instructionMarkup\(\{ id: form\.interaction/);
+  assert.match(source,/state\.preparation\?\.exam_language/);assert.match(source,/instructionMarkup\(\{ id: instructionId/);
   assert.match(source,/const view = VIEW_TITLES\[key\] \? key : 'heute'/);
   assert.doesNotMatch(source,/esc\([^\n;]*\|\| messageMarkup/);
 });
@@ -216,8 +216,8 @@ await check('actual shell objective rendering keeps exam language and immutable 
   const render=source.slice(source.indexOf('function renderObjectiveForm('),source.indexOf('/** Post one answer'));
   let html='', examLanguage='en';
   const form={interaction:'single_choice',passages:[{label:'m131',lines:['Original English passage <untouched>']}],items:[{id:'1',prompt:'Original English question?',options:[{id:'a',label:'Original English answer'},{id:'b',label:'Other answer'}]}]};
-  const execute=new Function('objectiveForm','setShellHTML','INSTRUCTIONS','instructionMarkup','getExamLanguage','examTextAttributes','messageMarkup','esc',render+'; return renderObjectiveForm;')(
-    ()=>form,(_host,value)=>{html=value;},INSTRUCTIONS,instructionMarkup,()=>examLanguage,()=>`lang="${examLanguage||'und'}" dir="ltr"`,messageMarkup,esc);
+  const execute=new Function('objectiveForm','setShellHTML','instructionFor','instructionMarkup','getExamLanguage','examTextAttributes','messageMarkup','esc',render+'; return renderObjectiveForm;')(
+    ()=>form,(_host,value)=>{html=value;},instructionFor,instructionMarkup,()=>examLanguage,()=>`lang="${examLanguage||'und'}" dir="ltr"`,messageMarkup,esc);
   setLocale('ar'); execute({payload:{}},{});
   assert.match(html,/lang="en" dir="ltr">Original English question\?/);
   assert.ok(html.includes('Original English passage &lt;untouched&gt;'));
@@ -249,8 +249,8 @@ await check('the answer tiles keep their state slots and are marked only from th
   const render=source.slice(source.indexOf('function renderObjectiveForm('),source.indexOf('/** Post one answer'));
   let html='';
   const form={interaction:'single_choice',passages:[],items:[{id:'1',prompt:'q',options:[{id:'a',label:'A'},{id:'b',label:'B'}]}]};
-  new Function('objectiveForm','setShellHTML','INSTRUCTIONS','instructionMarkup','getExamLanguage','examTextAttributes','messageMarkup','esc',render+'; return renderObjectiveForm;')(
-    ()=>form,(_host,value)=>{html=value;},INSTRUCTIONS,instructionMarkup,()=>'de',()=>'lang="de" dir="ltr"',messageMarkup,esc)({payload:{}},{});
+  new Function('objectiveForm','setShellHTML','instructionFor','instructionMarkup','getExamLanguage','examTextAttributes','messageMarkup','esc',render+'; return renderObjectiveForm;')(
+    ()=>form,(_host,value)=>{html=value;},instructionFor,instructionMarkup,()=>'de',()=>'lang="de" dir="ltr"',messageMarkup,esc)({payload:{}},{});
   const tiles=[...html.matchAll(/<button class="btn answer-option"[^>]*>([\s\S]*?)<\/button>/g)].map(m=>m[1]);
   assert.equal(tiles.length,2,'one tile per option');
   for(const [index,inner] of tiles.entries()){

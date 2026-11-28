@@ -647,6 +647,7 @@ check('X1. server/worker.mjs --once is a real process that drains one queued job
   const cliPath = path.resolve(fileURLToPath(new URL('../server/worker.mjs', import.meta.url)));
   const env = {
     ...process.env,
+    NODE_ENV: 'test', HATOVE_GRADER_MODE: 'stub',
     OWNAPI_PG_HOST: db.config.host,
     OWNAPI_PG_PORT: String(db.config.port),
     OWNAPI_PG_DATABASE: db.config.database,

@@ -3,7 +3,7 @@
  * Offline verification of the Goethe-Zertifikat B2 exam package:
  * - LV1–LV5 (30 items) + Writing (Tasks A/B + writing.goethe-b2@v1 rubric)
  * - Listening transcripts & speaker mapping (HV1–HV4, 30 items across 8 recordings, playback 1/2/1/2)
- * - Complete written form v2 (LV 65m + HV 40m + SA 75m = 180m) + all 8 WAV hashes & PCM durations
+ * - Complete written form v2, release v4 (LV 65m + HV 40m + SA 75m = 180m) + all 8 WAV hashes & PCM durations
  * - Stub grader + DeepSeek live grader compatibility
  */
 import assert from 'node:assert/strict';
@@ -37,11 +37,15 @@ check('manifest.json passes validatePackage with 30 LV items, 2 writing tasks an
     ['LV2', 6, 'gap_bank'],
     ['LV3', 6, 'single_choice'],
     ['LV4', 6, 'matching_headlines'],
-    ['LV5', 3, 'single_choice'],
+    ['LV5', 3, 'matching_headlines'],
   ]);
   for (const s of validated.sets) assert.equal(Object.keys(s.explanations).length, s.itemCount, `${s.setId} missing explanations`);
   assert.equal(validated.writingTasks.length, 2);
   assert.equal(validated.rubrics.length, 1);
+  assert.equal(validated.forms[1].writingChoices,undefined);
+  assert.equal(validated.forms[1].writingTasks.length,2);
+  assert.equal(validated.sets[3].payload.headlines.length,7);
+  assert.equal(validated.sets[4].payload.headlines.length,7);
 });
 
 check('writing.goethe-b2@v1 passes supportedWritingPolicy, stubGrade and DeepSeek parser validation', () => {
@@ -95,10 +99,10 @@ check('listening-source.json has 30 HV items across 8 recordings with valid spea
   }
 });
 
-check('listening-package.json (v2) passes validatePackage, validateCompleteForm and all 8 WAV byte/hash/PCM checks', () => {
+check('listening-package.json (v4) passes validatePackage, validateCompleteForm and all 8 WAV byte/hash/PCM checks', () => {
   const pkg = JSON.parse(readFileSync(new URL('../content/exams/goethe-zertifikat-b2/listening-package.json', import.meta.url), 'utf8'));
   const validated = validatePackage(pkg);
-  assert.equal(validated.release.version, 'v2');
+  assert.equal(validated.release.version, 'v4');
   assert.equal(validated.release.state, 'internal');
   assert.equal(validated.forms.length, 3);
   assert.equal(validated.sets.length, 9);
@@ -106,6 +110,13 @@ check('listening-package.json (v2) passes validatePackage, validateCompleteForm 
   const complete = validated.forms.find((f) => f.scope === 'complete_supported_written');
   assert(complete, 'missing complete_supported_written form');
   validateCompleteForm(validated.exam, validated.blueprint, complete);
+  const historicalBlueprint=structuredClone(validated.blueprint),historicalForm=structuredClone(complete);
+  historicalBlueprint.version='v2';historicalForm.version='v1';
+  const legacyLV5=historicalBlueprint.sections.flatMap(s=>s.parts).find(p=>p.family==='LV5');legacyLV5.interaction='single_choice';
+  const legacySA=historicalBlueprint.sections.flatMap(s=>s.parts).find(p=>p.family==='writing');legacySA.interaction='writing_choice';legacySA.itemCount=1;
+  historicalForm.members[4].interaction='single_choice';delete historicalForm.writingTasks;historicalForm.writingChoices=[{id:'SA1',section:'SA'}];
+  validateCompleteForm(validated.exam,historicalBlueprint,historicalForm,{historical:true});
+  assert.throws(()=>validateCompleteForm(validated.exam,historicalBlueprint,historicalForm),/incorrect complete part format/);
 
   const badBlueprint = structuredClone(validated.blueprint);
   badBlueprint.sections[1].parts[0].playback.mock = 2; // Goethe B2 HV1 is 1x only

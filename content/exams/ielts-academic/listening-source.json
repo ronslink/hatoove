@@ -1,0 +1,527 @@
+{
+  "schemaVersion": 1,
+  "examId": "ielts-academic",
+  "source": "Original Hatoove IELTS Academic listening scripts and items, AI-assisted authorship 2026-11-28; human review pending. Google Cloud TTS fixed recordings, distinct speaker voices. No official exam text copied.",
+  "parts": [
+    {
+      "family": "HV1",
+      "part": 1,
+      "title": "Joining a community repair workshop",
+      "playback": {
+        "practice": 1,
+        "mock": 1
+      },
+      "recordings": [
+        {
+          "id": "hv1-original01",
+          "mediaId": "ielts-academic.hv1.original01.audio",
+          "mediaVersion": "v1",
+          "label": "Part 1: Joining a community repair workshop",
+          "transcript": "[Narrator]: Part one. You will hear a conversation between a customer and a receptionist at a community repair centre. Read questions one to five.\n[Pause]: 30\n[Receptionist]: Good morning, Riverside Repair Centre. How can I help?\n[Customer]: Hello. I've moved into a flat nearby and would like to learn how to repair a few things rather than replace them. Your website lists several workshops. Is the introductory course suitable for someone who has never used a drill?\n[Receptionist]: Absolutely. We assume no previous experience. The introduction covers choosing tools, checking a damaged object and deciding when a repair needs a qualified professional. We don't teach people to work on electrical wiring. There is a separate demonstration about recognising electrical hazards, but participants don't open appliances themselves.\n[Customer]: That's reassuring. I saw a Saturday course advertised. I normally work on Saturdays, though.\n[Receptionist]: That was last month's arrangement. The next introductory group meets on Wednesday evenings, starting on the twelfth of March. There are four sessions, each from six thirty until eight thirty. The Thursday group shown online is for people who have already completed the introduction.\n[Customer]: Wednesday should work. Is everything held at the building next to the river?\n[Receptionist]: Usually, yes, but the ground floor there is being repaired. This course will be in the old station building on Mill Road. Please use the side entrance facing the bicycle racks. The main doors belong to the café and are locked before our class ends.\n[Customer]: I know the building. What does the course cost? The leaflet I picked up says sixty pounds.\n[Receptionist]: That leaflet includes the price of an optional tool kit. The four sessions themselves cost forty pounds. You can borrow our tools during the class, so you don't need to buy a kit. Replacement materials for a personal project are extra, but we discuss the price before using them.\n[Customer]: Good. I was thinking of bringing a small wooden chair with a loose joint. Would that be too ambitious?\n[Receptionist]: It sounds suitable. For the first session, bring a photograph showing the damaged area rather than the chair itself. We have limited storage, and the tutor likes to plan the repairs before larger objects arrive. Include something in the photograph that makes the size clear.\n[Narrator]: Now read questions six to ten.\n[Pause]: 30\n[Customer]: Could my daughter come along? She's fifteen and much better at practical things than I am.\n[Receptionist]: Yes, anyone aged fourteen or over can take part, provided a responsible adult attends with them if they are under sixteen. You would need to reserve two places. We cannot allow children to wait unsupervised in the workshop while someone else takes the course.\n[Customer]: Understood. I may need to travel for work during the last week. What happens if I miss a class?\n[Receptionist]: You can join the equivalent session with the next introductory group, subject to space. We don't offer individual refunds for missed sessions. If you tell us beforehand, the tutor can also suggest something to practise at home, but that doesn't replace the supervised session.\n[Customer]: And if the whole course is cancelled?\n[Receptionist]: Then we offer a full refund or a transfer, whichever you prefer. That's different from a participant missing one evening.\n[Customer]: How do I secure our places? Should I pay over the phone?\n[Receptionist]: Please complete the booking form on our website. Once we've checked the places, we'll email a payment link. We never ask for card details over the phone. Your reservation becomes confirmed when the payment arrives, and you then receive a separate confirmation message.\n[Customer]: I cycle everywhere, so the bicycle racks will be useful. Do I need special clothing?\n[Receptionist]: Closed shoes are essential. We supply protective glasses and aprons. Avoid loose sleeves, and tie back long hair. You don't need gloves for every activity; the tutor explains when they are appropriate. If you have any accessibility requirements, mention them on the form so we can arrange the workspace.\n[Customer]: One last thing. Who should I contact if I have a question about the chair before the course begins?\n[Receptionist]: Use the workshop email address, not the café number. Our course coordinator, Nina Patel, checks those messages each weekday and passes technical questions to the tutor. Put the course date in the subject line so she can find your booking quickly.\n[Customer]: Thank you. I'll complete the form for both of us this afternoon.\n[Narrator]: That is the end of part one. Check your answers.\n[Pause]: 30",
+          "questions": [
+            {
+              "n": 1,
+              "question": "What is included in the introductory course?",
+              "options": {
+                "a": "Rewiring electrical appliances",
+                "b": "Deciding when professional help is needed",
+                "c": "Advanced metalworking"
+              },
+              "answer": "b",
+              "explanation": "The receptionist explicitly includes recognising when a qualified professional is needed."
+            },
+            {
+              "n": 2,
+              "question": "When does the next introductory group meet?",
+              "options": {
+                "a": "Saturday mornings",
+                "b": "Thursday afternoons",
+                "c": "Wednesday evenings"
+              },
+              "answer": "c",
+              "explanation": "Wednesday evenings replace the previous Saturday arrangement; Thursday is the advanced group."
+            },
+            {
+              "n": 3,
+              "question": "Which entrance should participants use?",
+              "options": {
+                "a": "The side entrance beside the bicycle racks",
+                "b": "The main café entrance",
+                "c": "The entrance beside the river"
+              },
+              "answer": "a",
+              "explanation": "The temporary venue's side entrance faces the bicycle racks."
+            },
+            {
+              "n": 4,
+              "question": "How much do the four sessions cost without the optional kit?",
+              "options": {
+                "a": "Forty pounds",
+                "b": "Sixty pounds",
+                "c": "Eighty pounds"
+              },
+              "answer": "a",
+              "explanation": "Forty pounds is the course-only price; sixty includes an optional kit."
+            },
+            {
+              "n": 5,
+              "question": "What should the customer bring to the first session?",
+              "options": {
+                "a": "The chair",
+                "b": "A photograph of the damage",
+                "c": "A new set of tools"
+              },
+              "answer": "b",
+              "explanation": "The tutor wants a photograph before larger objects are brought in."
+            },
+            {
+              "n": 6,
+              "question": "Can the customer's daughter attend?",
+              "options": {
+                "a": "No, everyone must be sixteen.",
+                "b": "Yes, if the customer attends with her.",
+                "c": "Yes, without a separate booking."
+              },
+              "answer": "b",
+              "explanation": "Participants under sixteen need a responsible adult; both need reserved places."
+            },
+            {
+              "n": 7,
+              "question": "What can a participant do after missing one session?",
+              "options": {
+                "a": "Claim an individual refund",
+                "b": "Attend an equivalent later session if space allows",
+                "c": "Request a private lesson at no cost"
+              },
+              "answer": "b",
+              "explanation": "The receptionist offers the equivalent session with the next group, subject to space."
+            },
+            {
+              "n": 8,
+              "question": "When is the reservation confirmed?",
+              "options": {
+                "a": "When the online form is opened",
+                "b": "When payment arrives",
+                "c": "When card details are given by phone"
+              },
+              "answer": "b",
+              "explanation": "A separate confirmation follows receipt of payment."
+            },
+            {
+              "n": 9,
+              "question": "What must participants provide themselves?",
+              "options": {
+                "a": "Protective glasses",
+                "b": "An apron",
+                "c": "Closed shoes"
+              },
+              "answer": "c",
+              "explanation": "The centre supplies glasses and aprons; closed shoes are essential personal clothing."
+            },
+            {
+              "n": 10,
+              "question": "Where should questions about the chair be sent?",
+              "options": {
+                "a": "To the workshop email address",
+                "b": "To the café telephone number",
+                "c": "To the bicycle shop"
+              },
+              "answer": "a",
+              "explanation": "Nina checks workshop emails and forwards technical questions to the tutor."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "family": "HV2",
+      "part": 2,
+      "title": "A visitor briefing at the restored reservoir",
+      "playback": {
+        "practice": 1,
+        "mock": 1
+      },
+      "recordings": [
+        {
+          "id": "hv2-original01",
+          "mediaId": "ielts-academic.hv2.original01.audio",
+          "mediaVersion": "v1",
+          "label": "Part 2: A visitor briefing at the restored reservoir",
+          "transcript": "[Narrator]: Part two. You will hear a guide introducing a visit to a restored reservoir. Read questions eleven to fifteen.\n[Pause]: 30\n[Guide]: Welcome to Alder Reservoir. Before we set off, I'll explain how the site changed and help you plan your visit. The reservoir was built to supply water to the town's textile mills. People sometimes assume it was originally a drinking-water reservoir, but that service came from springs farther north. When the mills closed, the water remained, although the channels around it gradually became blocked.\nThe restoration began with a detailed survey. Clearing every tree and digging out the entire lake would have been expensive and damaging. Instead, the project reopened selected channels and repaired the bank where erosion threatened the path. The oldest willow trees were retained. Dead wood was removed only where it presented a danger to visitors, so you will still see fallen branches in areas set aside for wildlife.\nOur visitor centre occupies the former pump house. The building may look new because its roof was replaced, but the brick walls are original. Inside, the exhibition uses photographs and models to explain how water powered the mills. The machinery displayed beside the entrance is a working replica. The original pump was too badly corroded to operate safely and is stored under cover for research.\nThere are two walking routes. The full circuit takes about ninety minutes at a comfortable pace, without long stops. The shorter route returns across the new footbridge and takes approximately forty minutes. Both begin at the gate opposite this building. However, after yesterday's rain, part of the eastern bank is slippery. Today we recommend the shorter route for visitors who are unsteady on their feet. The bridge itself is open; the temporary closure mentioned on our old notice has ended.\nIf you want to watch birds, the northern hide is particularly useful in the early morning. Later in the day, sunlight reflects directly off the water in front of it, making observation harder. You do not need to reserve a place in the hide, but please keep conversation quiet and move away from the viewing slots when others are waiting. The upper platform is currently closed while a handrail is replaced; the ground-level windows remain available.\n[Narrator]: Now read questions sixteen to twenty.\n[Pause]: 30\n[Guide]: Families often ask about the children's trail. It is a route of small observation activities rather than a hunt for hidden objects. Children can compare leaf shapes, look for signs of feeding and listen for different sounds. The trail sheet is free at reception. Please return the pencils when you finish; you may keep the sheet. We ask everyone to leave natural objects where they find them, including feathers and empty shells.\nDogs are welcome on the western path if kept on a short lead. They are not permitted in the reed-bed area, even on a lead, because birds nest close to the ground there. Assistance dogs are an exception, and reception can explain the accessible route. The dog exercise field shown on some local maps belongs to a neighbouring farm and is not part of our site.\nYou can eat at the picnic tables beside the entrance. There is no café, although a volunteer kiosk sells hot drinks on Sunday mornings. Please bring water, especially in warm weather. We provide recycling bins for empty bottles, but food waste should be taken home. A bin marked recycling is not suitable for every kind of rubbish, and food left around the tables attracts animals to the busiest part of the site.\nPhotography for personal use is welcome. Drones require written permission in advance. This is partly because aircraft can disturb wildlife and partly because the nearby emergency landing area must remain clear. Buying an admission ticket does not grant permission to fly. If you are arranging a commercial photography session, contact the office about access and insurance before making plans.\nFinally, you can support the reservoir through the monthly volunteer mornings. No specialist experience is necessary for many of the jobs. The next morning focuses on checking the path signs and cleaning the viewing windows, not planting trees as the old programme suggested. Please register by email so we can prepare enough equipment. Volunteers receive a safety briefing before starting, and anyone uncomfortable with a particular activity can choose another task.\nWe'll now follow the western path together. Keep your ticket if you intend to leave and return later today. The guide at the gate will check it, so you won't need to pay again.\n[Narrator]: That is the end of part two. Check your answers.\n[Pause]: 30",
+          "questions": [
+            {
+              "n": 11,
+              "question": "Why was the reservoir originally constructed?",
+              "options": {
+                "a": "To supply the textile mills",
+                "b": "To provide drinking water",
+                "c": "To create a wildlife reserve"
+              },
+              "answer": "a",
+              "explanation": "The guide distinguishes industrial supply from the town's spring-fed drinking water."
+            },
+            {
+              "n": 12,
+              "question": "What approach did the restoration take?",
+              "options": {
+                "a": "Clearing every tree",
+                "b": "Reopening selected channels",
+                "c": "Draining the entire reservoir"
+              },
+              "answer": "b",
+              "explanation": "The project reopened selected channels and repaired a damaged bank."
+            },
+            {
+              "n": 13,
+              "question": "What is displayed beside the visitor-centre entrance?",
+              "options": {
+                "a": "The original pump in working order",
+                "b": "A model of a bird hide",
+                "c": "A working replica of the machinery"
+              },
+              "answer": "c",
+              "explanation": "The original pump is unsafe and stored; the displayed machine is a replica."
+            },
+            {
+              "n": 14,
+              "question": "Which route is recommended today for less steady walkers?",
+              "options": {
+                "a": "The eastern bank only",
+                "b": "The shorter route",
+                "c": "The full ninety-minute circuit"
+              },
+              "answer": "b",
+              "explanation": "Rain has made the eastern bank slippery, so the shorter route is recommended."
+            },
+            {
+              "n": 15,
+              "question": "Why is early morning good for the northern hide?",
+              "options": {
+                "a": "It is the only time reservations are accepted.",
+                "b": "Later sunlight makes observation harder.",
+                "c": "The ground-level windows close at noon."
+              },
+              "answer": "b",
+              "explanation": "Reflections later in the day make birds harder to observe."
+            },
+            {
+              "n": 16,
+              "question": "What may children keep after completing the trail?",
+              "options": {
+                "a": "The pencils",
+                "b": "Natural objects they collect",
+                "c": "The trail sheet"
+              },
+              "answer": "c",
+              "explanation": "Pencils must be returned and natural objects left in place; the sheet may be kept."
+            },
+            {
+              "n": 17,
+              "question": "Where are ordinary pet dogs allowed?",
+              "options": {
+                "a": "In the reed beds without a lead",
+                "b": "On the western path on a short lead",
+                "c": "On every route on a long lead"
+              },
+              "answer": "b",
+              "explanation": "The western path permits dogs on short leads; reed beds exclude ordinary pets."
+            },
+            {
+              "n": 18,
+              "question": "What should visitors do with food waste?",
+              "options": {
+                "a": "Take it home",
+                "b": "Put it in the bottle-recycling bins",
+                "c": "Leave it beside the picnic tables"
+              },
+              "answer": "a",
+              "explanation": "Food waste must be taken home to avoid attracting animals."
+            },
+            {
+              "n": 19,
+              "question": "What is necessary before flying a drone?",
+              "options": {
+                "a": "A normal admission ticket",
+                "b": "Written permission in advance",
+                "c": "A personal photography pass bought at the gate"
+              },
+              "answer": "b",
+              "explanation": "The guide explicitly says an admission ticket does not provide drone permission."
+            },
+            {
+              "n": 20,
+              "question": "What will the next volunteer morning focus on?",
+              "options": {
+                "a": "Planting trees",
+                "b": "Repairing the original pump",
+                "c": "Checking signs and cleaning viewing windows"
+              },
+              "answer": "c",
+              "explanation": "The programme has changed from tree planting to signs and windows."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "family": "HV3",
+      "part": 3,
+      "title": "Planning a study of reusable containers",
+      "playback": {
+        "practice": 1,
+        "mock": 1
+      },
+      "recordings": [
+        {
+          "id": "hv3-original01",
+          "mediaId": "ielts-academic.hv3.original01.audio",
+          "mediaVersion": "v1",
+          "label": "Part 3: Planning a study of reusable containers",
+          "transcript": "[Narrator]: Part three. You will hear two students, Maya and Leo, discussing a research project with their tutor. Read questions twenty-one to twenty-five.\n[Pause]: 30\n[Maya]: We brought the revised project proposal. We originally wanted to investigate whether students understood recycling symbols, but another group is already doing something similar.\n[Leo]: So we changed the focus to the reusable lunch containers introduced in the campus café. We want to understand why people return them late, even when there's a deposit.\n[Tutor]: That is more specific. What information do you have so far?\n[Maya]: The café manager gave us weekly totals for containers borrowed and returned. They show how many remain out, but not the reasons. We thought of interviewing everyone who hasn't returned one.\n[Tutor]: Be careful. The café should not give you customers' personal details simply because you're doing a project. Could you recruit volunteers without obtaining the borrowing list?\n[Leo]: We could put a short invitation beside the return point and in the student newsletter. People could contact us directly.\n[Tutor]: Yes. Then explain clearly that participation is voluntary and won't affect their deposit. You should also consider people who return containers promptly; otherwise, you have no comparison group.\n[Maya]: We had planned to interview twenty people. Would ten prompt returners and ten late returners be sensible?\n[Tutor]: It could work for an exploratory project. Don't present that small volunteer sample as representative of the entire university. What questions would you ask?\n[Leo]: Why they forgot to return the container, and whether a larger deposit would make them more responsible.\n[Tutor]: Both questions assume an explanation before you've heard the answer. Someone may have remembered perfectly well but found the return point closed. Start by asking them to describe the last time they used the system.\n[Maya]: Then we can ask what happened after they finished lunch and whether they encountered any difficulty. That leaves room for explanations we haven't considered.\n[Leo]: I see. We should test the questions on a couple of volunteers before the main interviews.\n[Tutor]: Exactly. A pilot can reveal confusing wording. Keep a note of changes and why you made them. If you substantially change a question, don't silently combine the pilot answers with the later interviews as if everyone had been asked the same thing.\n[Narrator]: Now read questions twenty-six to thirty.\n[Pause]: 30\n[Maya]: We also wanted to observe the return point for a few hours. The café is busy at lunchtime, but the containers can be returned later.\n[Leo]: I can watch it on Monday between twelve and two. Would that be enough?\n[Tutor]: It would describe one busy period. Try including a quieter afternoon and an evening, especially if access might be part of the problem. You don't need to identify individuals. Count arrivals, successful returns and occasions when someone leaves without returning an item.\n[Maya]: Should we ask those people why they leave?\n[Tutor]: Not as part of the observation unless you have arranged and explained that separate recruitment method. A visible notice should explain the observation and provide contact details. Keep the records anonymous.\n[Leo]: For analysis, I thought we could count how often each reason occurs. Then we'd have a chart showing the most common problem.\n[Maya]: But if someone mentions two different difficulties, we'd need to keep both.\n[Tutor]: Correct. Develop a coding guide with clear definitions. Independently code a few of the same interviews, compare your decisions and discuss disagreements before dividing the rest. Don't force a person's whole account into a single category merely to make a simple chart.\n[Leo]: Would it be useful to recommend changing the deposit?\n[Tutor]: Only if your evidence supports that recommendation. You might find that opening hours or the location of the return point matters more. Your task is to investigate, not to defend the café's existing policy or your initial idea.\n[Maya]: We can present the findings to the café manager, but we should include the limits: volunteers may have stronger opinions than other users, and our observation periods cover only part of a week.\n[Tutor]: Good. Also separate what participants reported from what you directly observed. A person saying that the return machine often fails is useful evidence of their experience; it is not a measured failure rate.\n[Leo]: For the final presentation, should we include all the interview transcripts?\n[Tutor]: No. Use brief anonymised extracts that illustrate your analysis and keep the full material in the approved course storage. The slides should make your reasoning clear without exposing participants' identities.\n[Maya]: We'll revise the recruitment plan and bring the pilot questions next Tuesday.\n[Narrator]: That is the end of part three. Check your answers.\n[Pause]: 30",
+          "questions": [
+            {
+              "n": 21,
+              "question": "Why did the students change their original topic?",
+              "options": {
+                "a": "Another group was studying a similar topic.",
+                "b": "The café had stopped recycling.",
+                "c": "Their tutor prohibited environmental projects."
+              },
+              "answer": "a",
+              "explanation": "Maya says another group is already investigating recycling symbols."
+            },
+            {
+              "n": 22,
+              "question": "What is the revised project's main focus?",
+              "options": {
+                "a": "How containers are manufactured",
+                "b": "Reasons for late container returns",
+                "c": "Whether lunch prices should rise"
+              },
+              "answer": "b",
+              "explanation": "Leo identifies the question as why people return reusable containers late."
+            },
+            {
+              "n": 23,
+              "question": "How will participants be recruited?",
+              "options": {
+                "a": "By taking names from the café's borrowing list",
+                "b": "Through a voluntary invitation",
+                "c": "By requiring every customer to take part"
+              },
+              "answer": "b",
+              "explanation": "The tutor rejects using customer details and supports voluntary direct contact."
+            },
+            {
+              "n": 24,
+              "question": "Why include prompt returners?",
+              "options": {
+                "a": "To provide a comparison group",
+                "b": "To make the café's policy look successful",
+                "c": "To replace all late returners"
+              },
+              "answer": "a",
+              "explanation": "The tutor explicitly requests a comparison group."
+            },
+            {
+              "n": 25,
+              "question": "What is wrong with Leo's first interview questions?",
+              "options": {
+                "a": "They contain too many technical terms.",
+                "b": "They assume the cause of the behaviour.",
+                "c": "They ask about events too far in the past."
+              },
+              "answer": "b",
+              "explanation": "Forgetting and irresponsibility are assumed before participants describe their experiences."
+            },
+            {
+              "n": 26,
+              "question": "What observation schedule does the tutor recommend?",
+              "options": {
+                "a": "Only Monday lunchtime",
+                "b": "Several periods including quieter times",
+                "c": "Only the final hour before closing"
+              },
+              "answer": "b",
+              "explanation": "An afternoon and evening should supplement the busy lunchtime period."
+            },
+            {
+              "n": 27,
+              "question": "How should the students begin coding interviews?",
+              "options": {
+                "a": "Each code some of the same interviews independently.",
+                "b": "Assign every interview to only one category.",
+                "c": "Ask the café manager to choose all categories."
+              },
+              "answer": "a",
+              "explanation": "The tutor recommends independent coding of shared examples followed by comparison."
+            },
+            {
+              "n": 28,
+              "question": "When should they recommend a larger deposit?",
+              "options": {
+                "a": "Before interviewing participants",
+                "b": "Only if the evidence supports it",
+                "c": "Whenever a customer returns a container late"
+              },
+              "answer": "b",
+              "explanation": "The tutor warns them not to defend their initial idea."
+            },
+            {
+              "n": 29,
+              "question": "What distinction must the findings preserve?",
+              "options": {
+                "a": "Reports of experience versus direct observations",
+                "b": "First-year students versus all staff",
+                "c": "Monday interviews versus Tuesday interviews only"
+              },
+              "answer": "a",
+              "explanation": "The tutor distinguishes a reported machine problem from a measured failure rate."
+            },
+            {
+              "n": 30,
+              "question": "What should appear in the final slides?",
+              "options": {
+                "a": "All complete transcripts",
+                "b": "Participants' names and borrowing records",
+                "c": "Brief anonymised extracts"
+              },
+              "answer": "c",
+              "explanation": "The tutor requests short anonymised extracts and approved storage for full material."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "family": "HV4",
+      "part": 4,
+      "title": "Designing products for repair",
+      "playback": {
+        "practice": 1,
+        "mock": 1
+      },
+      "recordings": [
+        {
+          "id": "hv4-original01",
+          "mediaId": "ielts-academic.hv4.original01.audio",
+          "mediaVersion": "v1",
+          "label": "Part 4: Designing products for repair",
+          "transcript": "[Narrator]: Part four. You will hear part of a lecture about designing products for repair. Read questions thirty-one to thirty-five.\n[Pause]: 30\n[Lecturer]: Today I want to examine repair as a design problem. Discussions about waste often begin with the material an object is made from. That is important, but an object may be discarded while most of its material remains perfectly usable. A small failed component can end the useful life of a much larger assembly. Asking whether the material is recyclable therefore leaves another question unanswered: could the product have remained in service through a straightforward repair?\nWe can distinguish several obstacles. The first is physical access. A case held together by ordinary screws can usually be opened with common tools. A sealed case may require cutting or heating, and the process can damage parts that were working properly. Designers sometimes justify sealing on grounds of water resistance or appearance. Those aims can be legitimate, but the decision should acknowledge the effect on repair instead of treating access as irrelevant once the product leaves the factory.\nAccess alone is not enough. Imagine a technician who opens a device safely and identifies the failed switch. If the switch has an unusual shape and the manufacturer no longer supplies it, the repair may still be impossible. Standard components can reduce this dependence, although standardisation is not suitable for every function. The important point is to consider spare-part availability over the expected life of the product, rather than only during the period when new units are being sold.\nA third obstacle is information. Repairers may need a circuit diagram, an assembly sequence or a clear explanation of an error message. Providing these does not mean that every owner should attempt every repair. Instructions can identify tasks that require specialist knowledge and explain how to make the device safe before work begins. In fact, vague instructions may encourage risk because people improvise when they cannot find reliable guidance. Useful information should describe both a procedure and its limits.\nThe economics are equally important. If diagnosing a fault takes several hours, the labour cost may exceed the price of a replacement. A design that allows a technician to test components separately can shorten diagnosis, even if the physical replacement remains unchanged. This is why counting removable screws is an incomplete measure of repairability. A product can be easy to open yet difficult to diagnose, and a quick diagnosis may matter more to the final bill than a few minutes saved on disassembly.\n[Narrator]: Now read questions thirty-six to forty.\n[Pause]: 30\n[Lecturer]: Now consider modular design. Dividing a product into replaceable units can make repair easier, but it can also create trade-offs. Extra connectors may add weight, occupy space or introduce new failure points. Replacing an entire module to fix one small part may discard more material than a component-level repair would. We should therefore ask which level of modularity is appropriate, not assume that the greatest possible number of modules is always best.\nSoftware creates a related challenge. A functioning piece of hardware may become unusable if necessary updates or authentication services disappear. Longer software support can extend useful life, but an advertised support period should say when the clock starts. Five years from a model's launch is not the same as five years from the day a particular customer buys it. Clear commitments help purchasers compare products and help second-hand buyers estimate how much supported use remains.\nRepair information also needs to survive changes in ownership. A paper manual may be lost, while a web address printed on a case may stop working. Some organisations maintain independent archives of manuals and component information. Their value lies not simply in collecting files, but in identifying the exact product version to which each document applies. An instruction for a similar-looking model can be misleading if internal connections or safety procedures have changed.\nHow should we evaluate progress? A repairability label can help consumers notice the issue, but the underlying criteria must be visible. A single high score might conceal excellent access combined with poor parts availability. Tests should also consider ordinary repair conditions. A specialist at the manufacturing plant may have tools and knowledge unavailable to a local repair shop. Publishing the assumptions behind a test makes it easier to judge whether the result is relevant to an actual owner.\nFinally, repair is not automatically the best option in every case. An old appliance may consume substantially more energy than a suitable replacement, or a damaged component may present a safety risk. The comparison should consider manufacturing impacts, expected remaining life, use patterns and the proposed repair. The case for better repair design is not that nothing should ever be replaced. It is that replacement should be a considered decision, rather than the only practical response to a minor fault.\n[Narrator]: That is the end of part four. Check your answers. After this recording, use the remaining listening review time to check all forty responses.\n[Pause]: 30",
+          "questions": [
+            {
+              "n": 31,
+              "question": "What question does a focus on recycling alone overlook?",
+              "options": {
+                "a": "Whether a product could stay in use through repair",
+                "b": "Whether raw materials have colours",
+                "c": "Whether factories can sell more products"
+              },
+              "answer": "a",
+              "explanation": "The introduction distinguishes recycling material from extending the object's useful life."
+            },
+            {
+              "n": 32,
+              "question": "What is a possible disadvantage of a sealed case?",
+              "options": {
+                "a": "It always weighs more than a screwed case.",
+                "b": "Opening it can damage working parts.",
+                "c": "It makes water resistance impossible."
+              },
+              "answer": "b",
+              "explanation": "The lecturer says cutting or heating can damage parts that were still working."
+            },
+            {
+              "n": 33,
+              "question": "Why may repair fail even after a broken switch is identified?",
+              "options": {
+                "a": "The switch is visible.",
+                "b": "A suitable replacement part is unavailable.",
+                "c": "The case uses common screws."
+              },
+              "answer": "b",
+              "explanation": "The example concerns an unusual switch no longer supplied by its manufacturer."
+            },
+            {
+              "n": 34,
+              "question": "What should useful repair instructions include?",
+              "options": {
+                "a": "Only a promise that all owners can repair the product",
+                "b": "The procedure and its limits",
+                "c": "A requirement to replace the whole product"
+              },
+              "answer": "b",
+              "explanation": "Instructions should explain procedures, safety and when specialist knowledge is needed."
+            },
+            {
+              "n": 35,
+              "question": "Why is the number of removable screws an incomplete measure?",
+              "options": {
+                "a": "Diagnosis time also affects repair cost.",
+                "b": "Screws are never used in modern products.",
+                "c": "Opening a case is always the most expensive stage."
+              },
+              "answer": "a",
+              "explanation": "A product may be easy to open but costly to diagnose."
+            },
+            {
+              "n": 36,
+              "question": "What disadvantage can modular design introduce?",
+              "options": {
+                "a": "Additional connectors can create failure points.",
+                "b": "It eliminates all spare parts.",
+                "c": "It prevents replacement of any component."
+              },
+              "answer": "a",
+              "explanation": "The lecturer lists weight, space and extra failure points as possible connector costs."
+            },
+            {
+              "n": 37,
+              "question": "What should a software-support commitment specify?",
+              "options": {
+                "a": "The colour of the device",
+                "b": "When the support period begins",
+                "c": "How many owners the device has had"
+              },
+              "answer": "b",
+              "explanation": "Support measured from launch differs from support measured from purchase."
+            },
+            {
+              "n": 38,
+              "question": "Why must archived instructions identify an exact product version?",
+              "options": {
+                "a": "Similar-looking models may have different internal arrangements.",
+                "b": "All old instructions are automatically unsafe.",
+                "c": "Owners are forbidden to keep paper manuals."
+              },
+              "answer": "a",
+              "explanation": "Internal connections and safety procedures can differ between similar models."
+            },
+            {
+              "n": 39,
+              "question": "What makes a repairability test easier to interpret?",
+              "options": {
+                "a": "Keeping its criteria confidential",
+                "b": "Publishing its assumptions and criteria",
+                "c": "Testing only at the manufacturing plant"
+              },
+              "answer": "b",
+              "explanation": "Visible criteria and assumptions help owners judge a result's relevance."
+            },
+            {
+              "n": 40,
+              "question": "What is the lecturer's final position?",
+              "options": {
+                "a": "Every product should be repaired indefinitely.",
+                "b": "Replacement should remain a considered option.",
+                "c": "Energy consumption should never affect replacement decisions."
+              },
+              "answer": "b",
+              "explanation": "The conclusion argues for a real choice, accounting for safety, energy and manufacturing impacts."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

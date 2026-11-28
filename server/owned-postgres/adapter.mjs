@@ -287,7 +287,7 @@ export function createPostgresDatastore({ pool, onCall, examCatalogue = createEx
         const bundle=await readReleasedForm(client,{examId:origin.exam_id,formId:origin.form_id,formVersion:origin.form_version,releaseVersion:origin.release_version,completed});
         blocked=bundle?.blockedReason??(!bundle?'content_unavailable':null);
         reviewWithdrawn ||= Boolean(bundle?.reviewWithdrawn);
-        writingSection=bundle?.writingTask?.section??bundle?.writingChoices?.[0]?.section??null;
+        writingSection=bundle?.writingTask?.section??bundle?.writingChoices?.[0]?.section??bundle?.writingTasks?.find(b=>b.task.task_id===attempt.task_id&&b.task.version===attempt.task_version)?.section??null;
       }
     }
     return {mock_run_id:attached?.id??null,blocked_reason:blocked,review_withdrawn:reviewWithdrawn,review_basis:t?.review_basis??null,attached,writingSection};

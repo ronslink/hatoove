@@ -4,7 +4,7 @@ import { Fault } from '../owned-api.mjs';
 import { requirePreparationId } from '../preparation-contract.mjs';
 import { validateWritingChoice, validateStartMockRun, validateSaveMockRun, validateFinaliseMockRun, validatePinnedSnapshot, mockTiming, validateGroupResponses } from '../mock-contract.mjs';
 import { resolvePreparation, requireActivePreparation } from './preparations.mjs';
-import { writingAttachment, attachWriting, finaliseWriting } from './mock-writing.mjs';
+import { writingAttachments, attachWriting, finaliseWriting } from './mock-writing.mjs';
 import { listReleasedForms, readReleasedForm } from './packages.mjs';
 import { readCurrentReleaseEligibility } from './release-eligibility.mjs';
 import { readFinalisedMockItemExplanation } from './explanations.mjs';
@@ -36,7 +36,8 @@ async function readRow(client, owner, id, lock = false) {
     `SELECT r.*, clock_timestamp() AS server_now FROM mock_run r WHERE r.id = $1 AND r.owner_id = $2${lock ? ' FOR UPDATE OF r' : ''}`,
     [id, owner]));
   if (!row) fail(404, 'not_found');
-  row.writing=await writingAttachment(client,owner,id);
+  row.writing_attachments=await writingAttachments(client,owner,id);
+  row.writing=row.writing_attachments.find(w=>w.binding_kind!=='required')??null;
   row.time_groups=await readTiming(client,owner,id);
   return row;
 }
@@ -50,6 +51,7 @@ function runDto(row, bundle, summary = false) {
     title: row.title, scope: row.scope, mode: row.mode, state: row.state, revision: Number(row.revision),
     attempt_mode: bundle?.form.payload.attemptMode ?? null,
     writing:row.writing??null,
+    writing_attachments:(row.writing_attachments??[]).filter(w=>w.binding_kind==='required'),
     timing:mockTiming(row.time_groups,row.server_now),
     created_at: iso(row.created_at), updated_at: iso(row.updated_at), deadline_at: iso(row.deadline_at),
     finalised_at: iso(row.finalised_at), expired: expired(row), blocked_reason: blocked, server_now: iso(row.server_now),
@@ -57,6 +59,7 @@ function runDto(row, bundle, summary = false) {
   if (!summary) Object.assign(dto, {
     writing_choices:blocked?[]:bundle.writingChoices||[],
     writing_task:blocked?null:bundle.writingTask??null,
+    writing_tasks:blocked?[]:bundle.writingTasks??[],
     responses: row.responses, position: row.position,
     members: blocked ? [] : bundle.members.map((member) => ({
       set_id: member.set_id, version: member.version, interaction: member.interaction, item_count: Number(member.item_count),
@@ -131,7 +134,7 @@ export function mockRunMethods({ settle, note = () => {}, catalogue, explanation
         const rows = (await client.query(`SELECT r.*, clock_timestamp() AS server_now FROM mock_run r
           WHERE r.owner_id = $1 AND r.preparation_id = $2 ORDER BY r.created_at DESC,r.id DESC LIMIT 100`, [owner, preparationId])).rows;
         const result = [];
-        for (const row of rows) { row.writing=await writingAttachment(client,owner,row.id); row.time_groups=await readTiming(client,owner,row.id); result.push(runDto(row, await bundleOf(client, row), true)); }
+        for (const row of rows) { row.writing_attachments=await writingAttachments(client,owner,row.id);row.writing=row.writing_attachments.find(w=>w.binding_kind!=='required')??null; row.time_groups=await readTiming(client,owner,row.id); result.push(runDto(row, await bundleOf(client, row), true)); }
         return result;
       }, true);
     },
@@ -159,6 +162,7 @@ export function mockRunMethods({ settle, note = () => {}, catalogue, explanation
         [randomUUID(), owner, prep.id, prep.exam_id, body.releaseVersion, bundle.release.blueprint_version, body.formId,
           body.formVersion, body.eventId, bundle.form.payload.title, bundle.form.payload.scope, bundle.form.payload.mode]));
         if (bundle.writingTask) await attachWriting(client,owner,row,null,bundle.writingTask);
+        for(const binding of bundle.writingTasks??[]) await attachWriting(client,owner,row,null,binding);
         row = await readRow(client,owner,row.id);
         await recordReceipt(client, owner, body.eventId, 'start', row, sha);
         return { created: true, run: runDto(row, bundle) };
@@ -248,7 +252,7 @@ export function mockRunMethods({ settle, note = () => {}, catalogue, explanation
         if (row.state !== 'finalised') {
           if (row.revision !== body.expectedRevision) fail(409, 'mock_conflict');
           await client.query('SELECT finalise_mock_run($1,$2)', [id, body.expectedRevision]);
-          if(bundle.writingChoices?.length || bundle.writingTask) await finaliseWriting(client,owner,row,body);
+          if(bundle.writingChoices?.length || bundle.writingTask || bundle.writingTasks?.length) await finaliseWriting(client,owner,row,body);
           row = await readRow(client, owner, id);
         }
         // A second tab's finalise is an acknowledgement, never a second grading/evidence operation.

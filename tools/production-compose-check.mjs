@@ -10,7 +10,7 @@ import { spawnSync } from 'node:child_process';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const files = ['compose.production.yaml', 'compose.production.local-db.yaml', 'compose.production.managed-db.yaml',
-  'deploy/Caddyfile', 'deploy/production.env.example', 'docs/PRODUCTION_DEPLOYMENT.md'];
+  'deploy/Caddyfile', 'deploy/production.env.example', 'docs/PRODUCTION_DEPLOYMENT.md', 'compose.grading-live.yaml'];
 const roles = ['admin', 'migration', 'auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner', 'operator'];
 const runtimeRoles = ['auth', 'learner', 'worker', 'deletion', 'payments', 'provisioner'];
 const fixed = {
@@ -44,7 +44,7 @@ const withoutComments = text => text.replace(/#[^\r\n]*/g, '');
 /** Compose releases whose `config --format json` dialect has been empirically verified to
  * retain an explicit `bind.create_host_path`. CI pins 5.6.0 — the version the droplet runs —
  * so this check compares like with like instead of interpreting an older release's JSON. */
-const VERIFIED_COMPOSE_VERSIONS = ['5.5.0', '5.6.0'];
+const VERIFIED_COMPOSE_VERSIONS = ['5.5.0', '5.6.0', '5.7.0'];
 
 export function assertCaddy(text) {
   const source = withoutComments(text);
@@ -65,11 +65,11 @@ export function assertCaddy(text) {
 }
 
 /** Validate actual docker compose config JSON, not a second YAML implementation. */
-export function assertProductionModel(model, variant) {
+export function assertProductionModel(model, variant, {liveGrading=false}={}) {
   requireThat(['local', 'managed'].includes(variant), 'invalid_variant');
   const services = model.services ?? {};
   requireThat(equalSet(keys(services), ['migrate', 'app', 'worker', 'feedback-operator', 'ingress', ...(variant === 'local' ? ['db'] : [])]), 'unexpected_service');
-  const allSecrets = [...roles.map(role => `pg_${role}`), 'resend_api_key'];
+  const allSecrets = [...roles.map(role => `pg_${role}`), 'resend_api_key', ...(liveGrading ? ['deepseek_api_key'] : [])];
   requireThat(equalSet(keys(model.secrets), allSecrets), 'secret_inventory_changed');
   for (const secretName of allSecrets) {
     const secret = model.secrets[secretName];
@@ -82,7 +82,12 @@ export function assertProductionModel(model, variant) {
     requireThat(!service.build && !service.privileged && !service.network_mode && !service.env_file && !service.entrypoint, 'unsafe_service_override');
     if (name !== 'ingress') requireThat(!(service.ports ?? []).length, 'private_port_published');
     const environment = service.environment ?? {};
-    requireThat(!keys(environment).some(key => /(?:^PGPASSWORD$|^PGSSLMODE$|^NODE_OPTIONS$|^NODE_TLS_|STRIPE|DEEPSEEK|OPENAI|SERVE_REVIEW|SERVE_RIGHTS|_PASSWORD$)/.test(key)), 'secret_or_policy_environment_leak');
+    const graderKeys=liveGrading&&name==='worker'?['DEEPSEEK_API_KEY_FILE','DEEPSEEK_MODEL']:[];
+    requireThat(!keys(environment).some(key => !graderKeys.includes(key)&&/(?:^PGPASSWORD$|^PGSSLMODE$|^NODE_OPTIONS$|^NODE_TLS_|STRIPE|DEEPSEEK|OPENAI|SERVE_REVIEW|SERVE_RIGHTS|_PASSWORD$)/.test(key)), 'secret_or_policy_environment_leak');
+    if(liveGrading&&name==='worker') {
+      const limit=String(environment.HATOVE_GRADER_DAILY_USD_LIMIT??'').trim();
+      requireThat(environment.NODE_ENV==='production'&&environment.HATOVE_GRADER_MODE==='live'&&environment.DEEPSEEK_MODEL==='deepseek-flash'&&environment.DEEPSEEK_API_KEY_FILE==='/run/secrets/deepseek_api_key'&&/^\d+(\.\d{1,4})?$/.test(limit)&&Number(limit)>0&&Number(limit)<=10000,'invalid_live_grading_configuration');
+    }
     for (const mount of service.volumes ?? []) requireThat(!String(mount.source).includes('docker.sock'), 'docker_socket_mounted');
   }
   requireThat(services.app.image === services.worker.image && services.app.image === services.migrate.image, 'runtime_image_drift');
@@ -95,7 +100,7 @@ export function assertProductionModel(model, variant) {
     requireThat(env.OWNAPI_PG_DATABASE && env.OWNAPI_PG_USER && env.OWNAPI_PG_SCHEMA && env.OWNAPI_PG_ROLE_PREFIX, 'missing_database_identity');
     requireThat(service.read_only === true && service.init === true && equalSet(service.cap_drop ?? [], ['ALL']) && (service.security_opt ?? []).includes('no-new-privileges:true'), 'runtime_isolation_changed');
     const expectedRoles = name === 'migrate' ? roles : name === 'app' ? runtimeRoles : name === 'feedback-operator' ? ['operator'] : ['worker'];
-    const expectedSecrets = [...expectedRoles.map(role => `pg_${role}`), ...(name === 'app' ? ['resend_api_key'] : [])];
+    const expectedSecrets = [...expectedRoles.map(role => `pg_${role}`), ...(name === 'app' ? ['resend_api_key'] : []), ...(liveGrading&&name==='worker'?['deepseek_api_key']:[])];
     requireThat(equalSet(sources(service), expectedSecrets), 'credential_mount_scope_changed');
     requireThat(equalSet(keys(env).filter(key => /PASSWORD_FILE$/.test(key)), expectedRoles.map(passwordKey)), 'credential_environment_scope_changed');
     for (const role of expectedRoles) requireThat(env[passwordKey(role)] === `/run/secrets/pg_${role}`, 'credential_target_changed');
@@ -226,13 +231,15 @@ function runComposeChecks() {
     }
     const resendFile = path.join(scratch,'synthetic-resend.txt'), resendValue = 'SYNTHETIC_PRIVATE_resend_DO_NOT_RENDER';
     fs.writeFileSync(resendFile,resendValue); sentinels.push(resendValue); values.HATOVE_RESEND_API_KEY_SOURCE = resendFile;
+    const gradingFile=path.join(scratch,'synthetic-deepseek.txt'),gradingValue='SYNTHETIC_PRIVATE_deepseek_DO_NOT_RENDER';
+    fs.writeFileSync(gradingFile,gradingValue);sentinels.push(gradingValue);values.HATOVE_DEEPSEEK_API_KEY_SOURCE=gradingFile;
     fs.writeFileSync(path.join(scratch,'.env'),'OWNAPI_PG_DATABASE=UNEXPECTED_AMBIENT_DATABASE\nSTRIPE_SECRET_KEY=UNEXPECTED_AMBIENT_PROVIDER\n');
     const render = (variants, additions = {}, removals = [], expectFailure = false) => {
       const selected = {...values,...additions}; for (const key of removals) delete selected[key];
       const envFile = path.join(scratch,'synthetic-input.env');
       fs.writeFileSync(envFile,Object.entries(selected).map(([key,value])=>`${key}=${String(value).replaceAll('\\','/')}`).join('\n'));
       const args = ['compose','--project-name','hatoove-production-config-only','--project-directory',scratch,'--env-file',envFile,'-f',path.join(scratch,'compose.production.yaml')];
-      for (const variant of variants) args.push('-f',path.join(scratch,`compose.production.${variant}-db.yaml`));
+      for (const variant of variants) args.push('-f',path.join(scratch,variant==='grading'?'compose.grading-live.yaml':`compose.production.${variant}-db.yaml`));
       args.push('--profile','operator','config','--format','json'); const result = execute(args);
       requireThat(!sentinels.some(value => result.stdout?.includes(value) || result.stderr?.includes(value)), 'secret_bytes_rendered');
       if (expectFailure) { requireThat(result.status !== 0, 'missing_required_input_accepted'); return null; }
@@ -243,6 +250,23 @@ function runComposeChecks() {
     };
     const local = render(['local']); assertProductionModel(local,'local');
     const managed = render(['managed']); assertProductionModel(managed,'managed');
+    for(const variant of ['local','managed']) {
+      const live=render([variant,'grading']);assertProductionModel(live,variant,{liveGrading:true});
+      const exposed=structuredClone(live);exposed.services.app.secrets.push({source:'deepseek_api_key'});
+      rejected(()=>assertProductionModel(exposed,variant,{liveGrading:true}),'app_grading_secret_accepted');
+      const inline=structuredClone(live);inline.services.worker.environment.DEEPSEEK_API_KEY='synthetic';
+      rejected(()=>assertProductionModel(inline,variant,{liveGrading:true}),'inline_grading_key_accepted');
+      const stub=structuredClone(live);stub.services.worker.environment.HATOVE_GRADER_MODE='stub';
+      rejected(()=>assertProductionModel(stub,variant,{liveGrading:true}),'production_stub_accepted');
+      for(const limit of ['1e1','1.00001','0','10000.0001','Infinity','-1']) {
+        const invalid=structuredClone(live);invalid.services.worker.environment.HATOVE_GRADER_DAILY_USD_LIMIT=limit;
+        rejected(()=>assertProductionModel(invalid,variant,{liveGrading:true}),'invalid_grading_budget_accepted');
+      }
+      for(const limit of ['0.0001','15','10000',' 1.0000 ']) {
+        const valid=structuredClone(live);valid.services.worker.environment.HATOVE_GRADER_DAILY_USD_LIMIT=limit;
+        assertProductionModel(valid,variant,{liveGrading:true});
+      }
+    }
     requireThat(managed.services.app.environment.OWNAPI_PG_TLS_CA_FILE == null, 'optional_ca_not_absent');
     const managedCA = render(['managed'],{OWNAPI_PG_TLS_CA_FILE:'/run/hatoove/pg-trust/provider-ca.pem'});
     assertProductionModel(managedCA,'managed');
@@ -294,7 +318,7 @@ function runComposeChecks() {
       const candidate = structuredClone(variant === 'local' ? local : managed); mutate(candidate);
       rejected(() => assertProductionModel(candidate,variant), 'unsafe_model_mutation_escaped');
     }
-    summary = {composeVersion:versionText, renderedVariants:3, modelMutations:mutations.length, configurationNegatives:5};
+    summary = {composeVersion:versionText, renderedVariants:5, modelMutations:mutations.length, configurationNegatives:5};
   } finally {
     requireThat(fs.realpathSync(path.dirname(scratch)) === tempRoot && path.basename(scratch).startsWith('hatoove-production-config-') && !fs.lstatSync(scratch).isSymbolicLink(), 'scratch_cleanup_refused');
     fs.rmSync(scratch,{recursive:true,force:true});

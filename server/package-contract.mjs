@@ -1,4 +1,5 @@
 /** Declarative package validation with explicit supported-format policy. No SQL or provider calls. */
+import {IELTS_POLICY,IELTS_KIND,IELTS_KEYS,IELTS_BANDS,IELTS_INSTRUCTIONS} from './writing-policy.mjs';
 import { DTZ_KEYS, DTZ_BANDS, DTZ_POLICY, DTZ_KIND, GOETHE_B1_KEYS, GOETHE_B1_BANDS, GOETHE_B1_POLICY, GOETHE_B1_KIND, TELC_B2_KEYS, TELC_B2_BANDS, TELC_B2_POLICY, TELC_B2_KIND, GOETHE_B2_KEYS, GOETHE_B2_BANDS, GOETHE_B2_POLICY, GOETHE_B2_KIND } from './writing-policy.mjs';
 import { createHash } from 'node:crypto';
 import { validateMediaDescriptor } from './media-contract.mjs';
@@ -135,12 +136,13 @@ export function validatePackage(input) {
   demand(p.forms.length>0 || ['hidden','withdrawn'].includes(p.release.state),'empty release');
   demand(unique(p.forms.map(f=>f.id+'@'+f.version)),'duplicate form');
   for (const f of p.forms) {
-    keys(f,['id','version','title','scope','sections','mode','timeLimitSeconds','feedback','members','writingChoices','writingTask','attemptMode','timingPolicy'],'form');
+    keys(f,['id','version','title','scope','sections','mode','timeLimitSeconds','feedback','members','writingChoices','writingTask','writingTasks','attemptMode','timingPolicy'],'form');
+    demand([f.writingTask,f.writingTasks,f.writingChoices].filter(v=>v!==undefined).length<=1,'writing bindings are mutually exclusive');
     demand(text(f.id,128) && ID.test(f.id) && VERSION.test(f.version) && text(f.title,200),'invalid form identity');
     demand(['section','complete_supported_written'].includes(f.scope) && f.feedback==='finalise','unsupported form policy');
     demand(Array.isArray(f.sections) && f.sections.length>0 && unique(f.sections) && f.sections.every(id=>p.blueprint.sections.some(s=>s.id===id)),'invalid form sections');
     demand((f.mode==='untimed' && f.timeLimitSeconds===null) || (f.mode==='timed' && Number.isSafeInteger(f.timeLimitSeconds) && f.timeLimitSeconds>=1 && f.timeLimitSeconds<=86400),'invalid timing');
-    demand(Array.isArray(f.members) && (f.members.length>0 || f.writingChoices?.length===1 || f.writingTask!==undefined) && f.members.length<=50 && unique(f.members.map(m=>m.setId+'@'+m.version)),'invalid/duplicate members');
+    demand(Array.isArray(f.members) && (f.members.length>0 || f.writingChoices?.length===1 || f.writingTask!==undefined || f.writingTasks?.length===2) && f.members.length<=50 && unique(f.members.map(m=>m.setId+'@'+m.version)),'invalid/duplicate members');
     for (const m of f.members) {
       keys(m,['setId','version','interaction','itemCount'],'member');
       demand(text(m.setId,128) && ID.test(m.setId) && VERSION.test(m.version) && INTERACTIONS.includes(m.interaction) && Number.isSafeInteger(m.itemCount) && m.itemCount>0 && m.itemCount<=100,'invalid member');
@@ -161,6 +163,16 @@ export function validatePackage(input) {
         demand(Array.isArray(choice.options)&&choice.options.length===2&&choice.options[0].id==='A'&&choice.options[1].id==='B','writing options must be A/B');
         for(const o of choice.options) { keys(o,['id','taskId','taskVersion'],'writing option'); demand(text(o.taskId,128)&&ID.test(o.taskId)&&VERSION.test(o.taskVersion),'invalid writing option'); }
         demand(unique(choice.options.map(o=>o.taskId+'@'+o.taskVersion)),'duplicate writing option');
+      }
+    }
+    if(f.writingTasks!==undefined) {
+      demand(['goethe-zertifikat-b2','ielts-academic'].includes(p.exam.id)&&Array.isArray(f.writingTasks)&&f.writingTasks.length===2,'two required writing tasks expected');
+      demand(unique(f.writingTasks.map(t=>t.id))&&unique(f.writingTasks.map(t=>t.taskId+'@'+t.taskVersion)),'duplicate required writing task');
+      for(const t of f.writingTasks) {
+        keys(t,['id','section','taskId','taskVersion'],'required writing');
+        const part=p.blueprint.sections.find(s=>s.id===t.section)?.parts.find(x=>x.family==='writing');
+        demand(text(t.id,128)&&ID.test(t.id)&&f.sections.includes(t.section)&&part?.interaction==='extended_writing'&&part.itemCount===2&&!part.mediaRequired,'invalid required writing binding');
+        demand(text(t.taskId,128)&&ID.test(t.taskId)&&VERSION.test(t.taskVersion),'invalid required writing identity');
       }
     }
     if(f.writingTask!==undefined) {
@@ -209,6 +221,8 @@ export function validatePackage(input) {
       ? {keys:TELC_B2_KEYS,bands:TELC_B2_BANDS,bandCount:4,label:'telc B2'}
       : r.examId==='goethe-zertifikat-b2'&&r.policy===GOETHE_B2_POLICY&&r.feedbackKind===GOETHE_B2_KIND
       ? {keys:GOETHE_B2_KEYS,bands:GOETHE_B2_BANDS,bandCount:5,label:'Goethe B2'}
+      : r.examId==='ielts-academic'&&r.policy===IELTS_POLICY&&r.feedbackKind===IELTS_KIND
+      ? {keys:IELTS_KEYS,bands:IELTS_BANDS,bandCount:4,label:'IELTS Academic formative'}
       : null;
     demand(rubricSpec!==null,'unsupported writing policy');
     demand(Array.isArray(r.criteria)&&r.criteria.length===4&&unique(r.criteria.map(c=>c.key))&&rubricSpec.keys.every(k=>r.criteria.some(c=>c.key===k)),`invalid ${rubricSpec.label} criteria`);
@@ -225,8 +239,9 @@ export function validatePackage(input) {
     demand(text(t.taskId,128)&&ID.test(t.taskId)&&VERSION.test(t.version)&&t.examId===p.exam.id&&t.family==='writing','invalid writing identity');
     const part=p.blueprint.sections.find(s=>s.id===t.section)?.parts.find(x=>x.family===t.family);
     const assigned=p.exam.id==='telc-deutsch-b1'&&p.exam.language==='de'&&t.section==='writing'&&part?.interaction==='extended_writing';
-    demand((assigned||part?.interaction==='writing_choice')&&part.itemCount===1&&!part.mediaRequired,'writing blueprint mismatch');
-    demand(['du','Sie'].includes(t.register)&&text(t.topic,200)&&text(t.situation,12000)&&text(t.adressat,1000)&&Array.isArray(t.leitpunkte)&&t.leitpunkte.length===4&&t.leitpunkte.every(x=>text(x,2000)),'invalid writing prompt');
+    const required=['goethe-zertifikat-b2','ielts-academic'].includes(p.exam.id)&&part?.interaction==='extended_writing'&&part.itemCount===2;
+    demand((required||(assigned||part?.interaction==='writing_choice')&&part.itemCount===1)&&!part.mediaRequired,'writing blueprint mismatch');
+    demand((['du','Sie'].includes(t.register)||(p.exam.id==='ielts-academic'&&t.register==='academic'))&&text(t.topic,200)&&text(t.situation,12000)&&text(t.adressat,1000)&&Array.isArray(t.leitpunkte)&&t.leitpunkte.length===4&&t.leitpunkte.every(x=>text(x,2000)),'invalid writing prompt');
     demand(text(t.rubricId,128)&&ID.test(t.rubricId)&&VERSION.test(t.rubricVersion),'invalid writing rubric');
     if(assigned) demand(t.rubricId==='writing.telc-b1'&&t.rubricVersion==='v1','assigned writing requires the exact telc rubric');
     demand(t.reviewStatus==='unreviewed'&&t.rightsStatus==='generated'&&text(t.source,1000),'new writing tasks need separate review');
@@ -265,6 +280,10 @@ export function validateTimeGroups(blueprint) {
 }
 
 const COMPLETE_TARGETS={
+  'ielts-academic':{
+    sections:['HV','LV','SA'],groups:[[['HV'],1920],[['LV'],3600],[['SA'],3600]],
+    parts:[['HV','HV1',10,'fixed_audio'],['HV','HV2',10,'fixed_audio'],['HV','HV3',10,'fixed_audio'],['HV','HV4',10,'fixed_audio'],['LV','LV1',13,'single_choice'],['LV','LV2',13,'single_choice'],['LV','LV3',14,'single_choice'],['SA','writing',2,'extended_writing']]
+  },
   'telc-deutsch-b1':{
     sections:['LV','SB','HV','writing'],groups:[[['LV','SB'],5400],[['HV'],1800],[['writing'],1800]],
     parts:[['LV','LV1',5,'matching_headlines'],['LV','LV2',5,'single_choice'],['LV','LV3',10,'matching_ads'],['SB','SB1',10,'gap_choice'],['SB','SB2',10,'gap_bank'],['HV','HV1',5,'fixed_audio'],['HV','HV2',10,'fixed_audio'],['HV','HV3',5,'fixed_audio'],['writing','writing',1,'extended_writing']]
@@ -283,14 +302,15 @@ const COMPLETE_TARGETS={
   },
   'goethe-zertifikat-b2':{
     sections:['LV','HV','SA'],groups:[[['LV'],3900],[['HV'],2400],[['SA'],4500]],
-    parts:[['LV','LV1',9,'single_choice'],['LV','LV2',6,'gap_bank'],['LV','LV3',6,'single_choice'],['LV','LV4',6,'matching_headlines'],['LV','LV5',3,'single_choice'],['HV','HV1',10,'fixed_audio'],['HV','HV2',6,'fixed_audio'],['HV','HV3',6,'fixed_audio'],['HV','HV4',8,'fixed_audio'],['SA','writing',1,'writing_choice']]
+    parts:[['LV','LV1',9,'single_choice'],['LV','LV2',6,'gap_bank'],['LV','LV3',6,'single_choice'],['LV','LV4',6,'matching_headlines'],['LV','LV5',3,'matching_headlines'],['HV','HV1',10,'fixed_audio'],['HV','HV2',6,'fixed_audio'],['HV','HV3',6,'fixed_audio'],['HV','HV4',8,'fixed_audio'],['SA','writing',2,'extended_writing']]
   }
 };
 
 /** Affirmative target format, reused by publication and runtime readers without mutating bytes. */
-export function validateCompleteForm(exam,blueprint,form) {
-  const target=COMPLETE_TARGETS[exam.id];
-  demand(target&&exam.language==='de','unsupported complete exam');
+export function validateCompleteForm(exam,blueprint,form,{historical=false}={}) {
+  const legacyGoethe=historical&&exam.id==='goethe-zertifikat-b2'&&blueprint.version==='v2'&&form.version==='v1';
+  const target=legacyGoethe?{...COMPLETE_TARGETS[exam.id],parts:COMPLETE_TARGETS[exam.id].parts.map(p=>p[1]==='LV5'?[p[0],p[1],3,'single_choice']:p[1]==='writing'?[p[0],p[1],1,'writing_choice']:p)}:COMPLETE_TARGETS[exam.id];
+  demand(target&&exam.language===(exam.id==='ielts-academic'?'en':'de'),'unsupported complete exam');
   demand(form.scope==='complete_supported_written'&&form.mode==='timed'&&form.attemptMode==='mock'&&form.timingPolicy==='ordered-fixed-v1','invalid complete form policy');
   demand(canonicalJson(form.sections)===canonicalJson(target.sections)&&canonicalJson(blueprint.sections.map(s=>s.id))===canonicalJson(target.sections),'incorrect complete section order');
   const parts=blueprint.sections.flatMap(s=>s.parts.map(p=>[s.id,p.family,p.itemCount,p.interaction]));
@@ -305,6 +325,7 @@ export function validateCompleteForm(exam,blueprint,form) {
   const objective=target.parts.filter(p=>INTERACTIONS.includes(p[3]));
   demand(form.members.length===objective.length&&form.members.every((m,i)=>m.itemCount===objective[i][2]&&m.interaction===objective[i][3]),'incorrect complete member order/count');
   if(exam.id==='telc-deutsch-b1') demand(form.writingTask?.section==='writing'&&form.writingChoices===undefined,'complete telc requires assigned writing');
+  else if(!legacyGoethe&&['goethe-zertifikat-b2','ielts-academic'].includes(exam.id)) demand(form.writingTask===undefined&&form.writingChoices===undefined&&form.writingTasks?.length===2&&form.writingTasks.every(t=>t.section==='SA'),'complete form requires both writing tasks');
   else demand(form.writingTask===undefined&&form.writingChoices?.length===1&&form.writingChoices[0].section==='SA','complete DTZ requires one A/B group');
   return blueprint.timeGroups;
 }
@@ -351,13 +372,13 @@ export function validatePlayback(part,examId) {
   demand(part.mediaRequired===true&&part.interaction==='fixed_audio','playback requires fixed audio');
   keys(part.playback,['practice','mock'],'playback');
   demand(['practice','mock'].every(mode=>Number.isSafeInteger(part.playback[mode])&&part.playback[mode]>0&&part.playback[mode]<=10),'invalid playback allowance');
-  const expected=(examId==='dtz-a2-b1'||examId==='telc-deutsch-b2')?{practice:1,mock:1}:examId==='telc-deutsch-b1'?TELC_PLAYBACK[part.family]:examId==='goethe-zertifikat-b1'?GOETHE_B1_PLAYBACK[part.family]:examId==='goethe-zertifikat-b2'?GOETHE_B2_PLAYBACK[part.family]:null;
+  const expected=(examId==='dtz-a2-b1'||examId==='telc-deutsch-b2'||examId==='ielts-academic')?{practice:1,mock:1}:examId==='telc-deutsch-b1'?TELC_PLAYBACK[part.family]:examId==='goethe-zertifikat-b1'?GOETHE_B1_PLAYBACK[part.family]:examId==='goethe-zertifikat-b2'?GOETHE_B2_PLAYBACK[part.family]:null;
   if(expected!==null) demand(expected!==undefined&&part.playback.practice===expected.practice&&part.playback.mock===expected.mock,'incorrect target playback policy');
   return part.playback;
 }
 
 function validateListeningBlueprint(p) {
-  const counts=p.exam.id==='dtz-a2-b1'?[4,5,8,3]:(p.exam.id==='telc-deutsch-b1'||p.exam.id==='telc-deutsch-b2')?[5,10,5]:p.exam.id==='goethe-zertifikat-b1'?[10,5,7,8]:p.exam.id==='goethe-zertifikat-b2'?[10,6,6,8]:null;
+  const counts=p.exam.id==='ielts-academic'?[10,10,10,10]:p.exam.id==='dtz-a2-b1'?[4,5,8,3]:(p.exam.id==='telc-deutsch-b1'||p.exam.id==='telc-deutsch-b2')?[5,10,5]:p.exam.id==='goethe-zertifikat-b1'?[10,5,7,8]:p.exam.id==='goethe-zertifikat-b2'?[10,6,6,8]:null;
   if(!counts) return;
   const section=p.blueprint.sections.find(s=>s.id==='HV');
   demand(section?.parts.length===counts.length&&section.parts.every((part,i)=>part.family==='HV'+(i+1)&&part.itemCount===counts[i]&&part.mediaRequired&&part.interaction==='fixed_audio'),'incorrect target listening format');

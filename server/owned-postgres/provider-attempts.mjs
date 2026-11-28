@@ -58,7 +58,7 @@ export async function readProviderUsageSummary(client,window){
   const unresolved=(await client.query(`SELECT count(*) AS n,min(a.created_at) AS oldest FROM provider_attempt a LEFT JOIN LATERAL(SELECT transport_status,disposition FROM provider_attempt_observation o WHERE o.attempt_id=a.attempt_id AND o.recorded_at<=$1 ORDER BY revision DESC LIMIT 1)o ON true
    WHERE a.created_at<=$1 AND (o.transport_status IS NULL OR o.transport_status='uncertain' OR o.disposition='pending')`,[asOf])).rows[0];
   const age=value=>value===null?null:Math.max(0,Date.parse(asOf)-new Date(value).getTime());
-  return {schemaVersion:1,asOf,window:{...window,basis:'intent_created_at',bounds:'[from,to)'},scope:'stub_only_engineering',totals,groups:output,
+  return {schemaVersion:1,asOf,window:{...window,basis:'intent_created_at',bounds:'[from,to)'},scope:output.some(g=>g.transportMode==='https')?'provider_usage_estimates':'stub_only_engineering',totals,groups:output,
    queue:{scope:'all_current_outstanding',queued:count(queue.queued),running:count(queue.running),expiredRunning:count(queue.expired),oldestQueuedAgeMs:age(queue.oldest_queued),oldestExpiredAgeMs:age(queue.oldest_expired),unresolvedIntents:count(unresolved.n),oldestUnresolvedIntentAgeMs:age(unresolved.oldest),workerLiveness:'unobserved'},
    failures:[...failures].sort(([a],[b])=>a.localeCompare(b)).map(([code,n])=>({code,count:n})),realSpend:{status:'not_measured',amount:null}};
  }catch(error){fail(['provider_report_invalid','provider_report_too_large'].includes(error?.code)?error.code:'provider_report_unavailable');}
