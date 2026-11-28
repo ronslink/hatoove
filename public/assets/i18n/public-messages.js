@@ -133,6 +133,8 @@ const rows = {
   slogan: ['Die Prüfung kennen. Schritt für Schritt üben.','Know the exam. Practise step by step.','Знайомтеся з іспитом. Практикуйтеся крок за кроком.','تعرّف على الامتحان. تدرّب خطوة بخطوة.','Sınavı tanıyın. Adım adım çalışın.'],
   examOverview: ['telc Deutsch B1 Überblick','telc Deutsch B1 overview','Огляд telc Deutsch B1','نظرة عامة على telc Deutsch B1','telc Deutsch B1 genel bakış'],
   dtzOverview: ['DTZ A2–B1 Überblick','DTZ A2–B1 overview','Огляд DTZ A2–B1','نظرة عامة على DTZ A2–B1','DTZ A2–B1 genel bakış'],
+  impressum: ['Impressum','Legal notice','Імпресум','بيانات قانونية','Künye'],
+  datenschutz: ['Datenschutz','Privacy policy','Конфіденційність','الخصوصية','Gizlilik'],
   copyright: ['© 2026 Hatoove · Unabhängige Prüfungsvorbereitung. Nicht mit telc, Goethe-Institut, g.a.s.t., Cambridge, ETS oder IELTS verbunden.','© 2026 Hatoove · Independent exam preparation. Not affiliated with telc, Goethe-Institut, g.a.s.t., Cambridge, ETS or IELTS.','© 2026 Hatoove · Незалежна підготовка до іспитів. Не пов’язана з telc, Goethe-Institut, g.a.s.t., Cambridge, ETS чи IELTS.','© 2026 Hatoove · تحضير مستقل للامتحان. غير تابع لـ telc أو Goethe-Institut أو g.a.s.t. أو Cambridge أو ETS أو IELTS.','© 2026 Hatoove · Bağımsız sınav hazırlığı. telc, Goethe-Institut, g.a.s.t., Cambridge, ETS veya IELTS ile bağlantılı değildir.'],
   sample: ['BEISPIEL','SAMPLE','ПРИКЛАД','مثال','ÖRNEK'],
   choose: ['Wählen Sie eine Antwort','Choose one answer','Оберіть одну відповідь','اختر إجابة واحدة','Bir yanıt seçin'],
