@@ -8,15 +8,16 @@
 <link rel="icon" type="image/svg+xml" href="/assets/design/hatoove-mark.svg">
 <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
 <link rel="stylesheet" href="/assets/design/hatoove.css"><link rel="stylesheet" href="/assets/design/fonts-coverage.css">
-<link rel="stylesheet" href="/assets/i18n/common.css"><link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/assets/i18n/common.css"><link rel="stylesheet" href="/site.css"><script type="module" src="/public-shell.js"></script>
 </head><body>
-<a class="skip" href="#main">Zum Inhalt</a>
+<a class="skip" href="#main" data-i18n="public.skip">Zum Inhalt</a>
 <header class="site-header"><div class="nav-wrap">
-<a class="brand" href="/" aria-label="Hatoove Startseite"><img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="186" height="34"></a>
-<nav aria-label="Hauptnavigation"><a href="/">Startseite</a><a href="/telc-deutsch-b1">telc Deutsch B1</a><a href="/dtz-a2-b1">DTZ A2–B1</a><a href="/signin">Anmelden</a></nav>
-<a class="btn btn-primary" href="/signin?mode=signup">Kostenlos starten</a>
+<a class="brand" href="/" data-i18n-aria-label="public.home" aria-label="Hatoove Startseite"><img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="186" height="34"></a>
+<nav data-i18n-aria-label="public.navigation" aria-label="Hauptnavigation"><a href="/telc-deutsch-b1" data-i18n="public.examOverview">telc Deutsch B1 Überblick</a><a href="/dtz-a2-b1" data-i18n="public.dtzOverview">DTZ A2–B1 Überblick</a><a href="/signin" data-i18n="public.signin">Anmelden</a></nav>
+<label class="interface-language" for="interface-language"><span data-i18n="public.language">Sprache</span><select id="interface-language"><option value="de" lang="de" dir="ltr">Deutsch</option><option value="en" lang="en" dir="ltr">English</option><option value="uk" lang="uk" dir="ltr">Українська</option><option value="ar" lang="ar" dir="rtl">العربية</option><option value="tr" lang="tr" dir="ltr">Türkçe</option></select></label>
+<a class="btn btn-primary" href="/signin?mode=signup" data-i18n="public.start">Kostenlos starten</a>
 </div></header>
-<main id="main">
+<main id="main" lang="de" dir="ltr">
 <section class="section-wrap" style="padding-block:48px 64px;max-width:760px">
 <p class="kicker">Rechtliche Angaben</p>
 <h1>Impressum</h1>
@@ -32,5 +33,5 @@
 <p>Die Inhalte unserer Seiten wurden mit größter Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der Übungsinhalte sowie für ein individuelles Prüfungsergebnis übernehmen wir keine Gewähr.</p>
 </section>
 </main>
-<footer class="footer section-wrap"><a class="brand" href="/" aria-label="Hatoove Startseite"><img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="168" height="32"></a><p>Die Prüfung kennen. Schritt für Schritt üben.</p><a class="link" href="/">Startseite</a><a class="link" href="/datenschutz">Datenschutz</a><a class="link" href="/signin">Anmelden</a><small>© 2026 Hatoove UG (haftungsbeschränkt) · Unabhängige Prüfungsvorbereitung.</small></footer>
+<footer class="footer section-wrap"><a class="brand" href="/" data-i18n-aria-label="public.home" aria-label="Hatoove Startseite"><img src="/assets/design/hatoove-logo.svg" alt="Hatoove" width="168" height="32"></a><p data-i18n="public.slogan">Die Prüfung kennen. Schritt für Schritt üben.</p><a class="link" href="/datenschutz" data-i18n="public.datenschutz">Datenschutz</a><a class="link" href="/signin" data-i18n="public.signin">Anmelden</a><small>© 2026 Hatoove UG (haftungsbeschränkt) · Unabhängige Prüfungsvorbereitung.</small></footer>
 </body></html>
