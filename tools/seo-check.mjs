@@ -154,7 +154,7 @@ console.log(`\n=== SEO surface check ===\n`);
     fail('S2', 'sitemap.xml lists exactly the canonical URLs', 'public/sitemap.xml is missing');
   } else {
     const locs = [...sitemap.matchAll(/<loc>([^<]*)<\/loc>/g)].map((match) => match[1].trim());
-    const expected = [`${APEX}/`, `${APEX}/telc-deutsch-b1`, `${APEX}/dtz-a2-b1`, `${APEX}/goethe-zertifikat-b1`, `${APEX}/impressum`, `${APEX}/datenschutz`];
+    const expected = [`${APEX}/`, `${APEX}/telc-deutsch-b1`, `${APEX}/dtz-a2-b1`, `${APEX}/goethe-zertifikat-b1`, `${APEX}/telc-deutsch-b2`, `${APEX}/impressum`, `${APEX}/datenschutz`];
     const malformed = locs.filter((loc) => !loc.startsWith(`${APEX}/`) || loc !== loc.trim());
     if (!locs.length) fail('S2', 'sitemap.xml lists exactly the canonical URLs', 'no <loc> entries found');
     else if (malformed.length) fail('S2', 'sitemap.xml lists exactly the canonical URLs', `not absolute https apex URLs: ${malformed.join(', ')}`);
@@ -622,6 +622,7 @@ try {
     const overviewProbe = await probe('/telc-deutsch-b1', { accept: NAVIGATION });
     const dtzOverviewProbe = await probe('/dtz-a2-b1', { accept: NAVIGATION });
     const goetheOverviewProbe = await probe('/goethe-zertifikat-b1', { accept: NAVIGATION });
+    const telcB2OverviewProbe = await probe('/telc-deutsch-b2', { accept: NAVIGATION });
     const publicShellProbe = await probe('/public-shell.js');
     const impressumProbe = await probe('/impressum', { accept: NAVIGATION });
     const datenschutzProbe = await probe('/datenschutz', { accept: NAVIGATION });
@@ -644,6 +645,9 @@ try {
     if (goetheOverviewProbe.status !== 200) problems.push(`/goethe-zertifikat-b1 answered ${goetheOverviewProbe.status}`);
     if (goetheOverviewProbe.robots) problems.push(`/goethe-zertifikat-b1 carries X-Robots-Tag: ${goetheOverviewProbe.robots}`);
     if (!goetheOverviewProbe.body.includes(`<link rel="canonical" href="${APEX}/goethe-zertifikat-b1">`)) problems.push('/goethe-zertifikat-b1 is missing its canonical link');
+    if (telcB2OverviewProbe.status !== 200) problems.push(`/telc-deutsch-b2 answered ${telcB2OverviewProbe.status}`);
+    if (telcB2OverviewProbe.robots) problems.push(`/telc-deutsch-b2 carries X-Robots-Tag: ${telcB2OverviewProbe.robots}`);
+    if (!telcB2OverviewProbe.body.includes(`<link rel="canonical" href="${APEX}/telc-deutsch-b2">`)) problems.push('/telc-deutsch-b2 is missing its canonical link');
     if (publicShellProbe.status !== 200) problems.push(`/public-shell.js answered ${publicShellProbe.status}`);
     if (impressumProbe.status !== 200) problems.push(`/impressum answered ${impressumProbe.status}`);
     if (!impressumProbe.body.includes(`<link rel="canonical" href="${APEX}/impressum">`)) problems.push('/impressum is missing its canonical link');
@@ -657,6 +661,7 @@ try {
     if (!html.includes('href="/telc-deutsch-b1"')) problems.push('index.html does not link to /telc-deutsch-b1');
     if (!html.includes('href="/dtz-a2-b1"')) problems.push('index.html does not link to /dtz-a2-b1');
     if (!html.includes('href="/goethe-zertifikat-b1"')) problems.push('index.html does not link to /goethe-zertifikat-b1');
+    if (!html.includes('href="/telc-deutsch-b2"')) problems.push('index.html does not link to /telc-deutsch-b2');
     if (!html.includes('href="/impressum"')) problems.push('index.html does not link to /impressum');
     if (!html.includes('href="/datenschutz"')) problems.push('index.html does not link to /datenschutz');
     if (problems.length) fail('S8', 'crawler files are public without a session', problems.join(' | '));

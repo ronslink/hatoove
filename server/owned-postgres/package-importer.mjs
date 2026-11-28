@@ -327,3 +327,20 @@ export async function promoteBundledGoetheB1Available(pool) {
   const goethe=JSON.parse(await readFile(new URL('../../content/exams/goethe-zertifikat-b1/listening-package.json',import.meta.url),'utf8'));
   return importPackage(pool,buildBundledGoetheB1AvailablePackage(goethe),{publisher:'bundled-goethe-b1-source',activation:'new-release'});
 }
+
+/** Reference-only v3 available release derived from the approved bundled telc Deutsch B2 v2 package. */
+export function buildBundledTelcB2AvailablePackage(telcB2) {
+  return {
+    ...structuredClone(telcB2),
+    release:{version:'v3',state:'available',resumeBlockedReleases:[]},
+    sets:[],media:[],writingTasks:[],rubrics:[],
+  };
+}
+
+/** Promote bundled telc Deutsch B2 from v2 (internal) to v3 (available) once all v2 subjects have named approvals. */
+export async function promoteBundledTelcB2Available(pool) {
+  const head=(await pool.query("SELECT release_version FROM exam_release_head WHERE exam_id='telc-deutsch-b2'")).rows[0]?.release_version;
+  if(head!=='v2') return {examId:'telc-deutsch-b2',releaseVersion:head??null,unchanged:true};
+  const telcB2=JSON.parse(await readFile(new URL('../../content/exams/telc-deutsch-b2/listening-package.json',import.meta.url),'utf8'));
+  return importPackage(pool,buildBundledTelcB2AvailablePackage(telcB2),{publisher:'bundled-telc-b2-source',activation:'new-release'});
+}

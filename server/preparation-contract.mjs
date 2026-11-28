@@ -20,8 +20,10 @@ export const INITIAL_EXAM_ID = 'telc-deutsch-b1';
 export const DTZ_EXAM_ID = 'dtz-a2-b1';
 /** The third supported German exam package (Goethe-Zertifikat B1). */
 export const GOETHE_B1_EXAM_ID = 'goethe-zertifikat-b1';
+/** The fourth supported German exam package (telc Deutsch B2). */
+export const TELC_B2_EXAM_ID = 'telc-deutsch-b2';
 /** The packages Hatoove currently offers. Frozen: widening it is a reviewed code change, not a setting. */
-export const ENABLED_EXAM_IDS = Object.freeze([INITIAL_EXAM_ID, DTZ_EXAM_ID, GOETHE_B1_EXAM_ID]);
+export const ENABLED_EXAM_IDS = Object.freeze([INITIAL_EXAM_ID, DTZ_EXAM_ID, GOETHE_B1_EXAM_ID, TELC_B2_EXAM_ID]);
 
 export const PREPARATION_STATES = Object.freeze(['active', 'archived']);
 export const EXAM_ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
