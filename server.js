@@ -465,10 +465,12 @@ const PUBLIC_FILES = Object.freeze([
   path.join(PUBLIC_DIR, 'index.html'),
   path.join(PUBLIC_DIR, 'telc-deutsch-b1.html'),
   path.join(PUBLIC_DIR, 'dtz-a2-b1.html'),
+  path.join(PUBLIC_DIR, 'goethe-zertifikat-b1.html'),
   path.join(PUBLIC_DIR, 'impressum.html'),
   path.join(PUBLIC_DIR, 'datenschutz.html'),
   path.join(PUBLIC_DIR, 'site.css'),
   path.join(PUBLIC_DIR, 'site.js'),
+  path.join(PUBLIC_DIR, 'public-shell.js'),
   // CRAWLER FILES ARE PUBLIC BY NECESSITY. A `robots.txt` or sitemap behind the session gate answers
   // 302/401, and a robots.txt a crawler cannot fetch means "do not crawl this host", while a sitemap
   // it cannot fetch is never used at all. Neither file carries learner data: robots.txt names the

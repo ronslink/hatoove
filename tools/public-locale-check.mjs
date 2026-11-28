@@ -137,7 +137,7 @@ await check('every public HTML page exposes the five-language switcher and secon
     assert(html.includes('id="interface-language"'),name+' is missing #interface-language');
     for(const code of locales)assert(html.includes('value="'+code+'"'),name+' is missing locale option '+code);
   }
-  for(const file of ['telc-deutsch-b1','dtz-a2-b1']){
+  for(const file of ['telc-deutsch-b1','dtz-a2-b1','goethe-zertifikat-b1','impressum','datenschutz']){
     for(const locale of locales){
       const document=makeDocument(read('public/'+file+'.html'));const storage=new Map([['hatoove.interface-language.v1',locale]]),writes=[],lifecycle={};
       const context=vm.createContext({document,navigator:{languages:['en-US']},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>{writes.push([k,v]);storage.set(k,v);}},addEventListener:(t,l)=>{(lifecycle[t]||=[]).push(l);}});
